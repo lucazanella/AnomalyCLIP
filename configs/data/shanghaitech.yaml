@@ -1,0 +1,23 @@
+_target_: src.data.anomaly_clip_datamodule.AnomalyCLIPDataModule
+num_workers: 10
+pin_memory: False
+num_segments: 32
+seg_length: 16
+batch_size: 64
+batch_size_test: 1
+num_classes: 18
+input_size: 224
+load_from_features: True
+frames_root: "/usr/src/datasets/shanghaitech/features/"
+frames_root_val: "/usr/src/datasets/shanghaitech/features/"
+annotations_root: "/usr/src/datasets/shanghaitech/"
+normal_id: 8
+image_tmpl: "{:06d}.jpg"
+stride: 1
+ncrops: 1
+annotation_file_anomaly: "/usr/src/datasets/shanghaitech/Anomaly_Train_Abnormal.txt"
+annotation_file_normal: "/usr/src/datasets/shanghaitech/Anomaly_Train_Normal.txt"
+annotation_file_test: "/usr/src/datasets/shanghaitech/Anomaly_Test.txt"
+annotation_file_temporal_test: "/usr/src/datasets/shanghaitech/Temporal_Anomaly_Annotation_for_Testing_Videos.txt"
+labels_file: "/usr/src/app/data/sht_labels.csv"
+spatialannotationdir_path:

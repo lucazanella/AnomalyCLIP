@@ -152,3 +152,20 @@ configs/local/default.yaml
 
 # Aim logging
 .aim
+
+.cache
+.config
+.github
+.local
+.npm
+checkpoints/
+configs/experiment/*
+configs/model/*
+docker/
+logs/
+scripts/
+.bash_history
+.env
+.python_history
+src/preprocessing
+website/

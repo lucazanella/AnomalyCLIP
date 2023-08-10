@@ -1,9 +1,9 @@
 from typing import List
 
 import hydra
-from lightning import Callback
-from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
+from pytorch_lightning import Callback
+from pytorch_lightning.loggers import LightningLoggerBase
 
 from src.utils import pylogger
 
@@ -30,10 +30,10 @@ def instantiate_callbacks(callbacks_cfg: DictConfig) -> List[Callback]:
     return callbacks
 
 
-def instantiate_loggers(logger_cfg: DictConfig) -> List[Logger]:
+def instantiate_loggers(logger_cfg: DictConfig) -> List[LightningLoggerBase]:
     """Instantiates loggers from config."""
 
-    logger: List[Logger] = []
+    logger: List[LightningLoggerBase] = []
 
     if not logger_cfg:
         log.warning("No logger configs found! Skipping...")
