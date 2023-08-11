@@ -1,12 +1,21 @@
+import pandas as pd
 import torch
+from dotmap import DotMap
+from einops import rearrange
 from torch import nn
+
+from src.models.components.coop import PromptLearner
+from src.models.components.text_encoder import TextEncoder
 
 
 class SelectorModel(nn.Module):
     def __init__(
         self,
+        selector_module: str,
         classnames: list,
         normal_id: int,
+        logit_scale: nn.Parameter,
+        batch_norm: bool,
         num_segments: int,
         seg_length: int,
         select_idx_dropout_topk: float,
@@ -16,8 +25,17 @@ class SelectorModel(nn.Module):
     ):
         super().__init__()
 
+        assert selector_module in [
+            "directions",
+            "cosine",
+            "feature_magnitude",
+        ], "Invalid selector module"
+
+        self.selector_module = selector_module
         self.classnames = classnames
         self.normal_id = normal_id
+        self.logit_scale = logit_scale
+        self.batch_norm = batch_norm
         self.num_segments = num_segments
         self.seg_length = seg_length
         self.select_idx_dropout_topk = select_idx_dropout_topk
@@ -25,7 +43,9 @@ class SelectorModel(nn.Module):
         self.num_topk = num_topk
         self.num_bottomk = num_bottomk
 
-        self.bn_layer = nn.BatchNorm1d(len(classnames) - 1, affine=False)
+        self.bn_layer = (
+            nn.BatchNorm1d(len(classnames) - 1, affine=False) if self.batch_norm else nn.Identity()
+        )
 
     def forward(
         self,
@@ -47,17 +67,27 @@ class SelectorModel(nn.Module):
             dim=0,
         )
 
-        # Re-centering transformation
-        text_features = text_features_except_normal - ncentroid  # num_classes - 1, 512
-        image_features = image_features - ncentroid
+        if self.selector_module == "cosine":
+            text_features = text_features_except_normal  # num_classes - 1, 512
+        else:
+            # Re-centering transformation
+            text_features = text_features_except_normal - ncentroid  # num_classes - 1, 512
+
+            image_features = image_features - ncentroid
 
         # Normalization
         text_features = text_features / text_features.norm(
             dim=-1, keepdim=True
         )  # num_classes - 1, num_classes - 1
 
-        # Scalar projection
-        logits = image_features @ text_features.T
+        if self.selector_module == "cosine":
+            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+            logit_scale = self.logit_scale.exp()
+            # Cosine similarity
+            logits = logit_scale * image_features @ text_features.T
+        else:
+            # Scalar projection
+            logits = image_features @ text_features.T
 
         # Normalization
         logits = self.bn_layer(logits)
@@ -70,51 +100,65 @@ class SelectorModel(nn.Module):
                 -1, self.num_segments * self.seg_length, logits.shape[-1]
             )  # (batch, num_segments*seg_length, n_cls)
 
-            topk_mask, bottomk_mask = self.generate_mask(logits)
-            topk_mask = topk_mask.to(image_features.device)
-            bottomk_mask = bottomk_mask.to(image_features.device)
+            topk_mask, bottomk_mask = self.generate_mask(logits, image_features)
 
-            logits_topk, idx_topk = self.select_topk(logits, labels, topk_mask)
+            logits_topk, idx_topk = self.select_topk(logits, image_features, labels, topk_mask)
             idx_topk_abn, idx_topk_nor = (
                 idx_topk[: idx_topk.shape[0] // 2],
                 idx_topk[idx_topk.shape[0] // 2 :],
             )
 
-            logits_bottomk, idx_bottomk = self.select_bottomk(logits, labels, bottomk_mask)
+            logits_bottomk, idx_bottomk = self.select_bottomk(
+                logits, image_features, labels, bottomk_mask
+            )
             idx_bottomk_abn = idx_bottomk[: idx_bottomk.shape[0] // 2]
 
             logits = logits.view(-1, logits.shape[-1])
             logits_topk = logits_topk.view(-1, logits_topk.shape[-1])
-            logits_bottomk = logits_bottomk.view(-1, logits_bottomk.shape[-1])
 
             return (
                 logits,
                 logits_topk,
-                logits_bottomk,
                 idx_topk_abn,
                 idx_topk_nor,
                 idx_bottomk_abn,
             )
 
-    def generate_mask(self, logits):
+    def generate_mask(self, logits, image_features):
         # Generate a mask with the desired percentage of zeros for each row
-        select_idx = torch.ones((logits.shape[0], self.num_segments))
-        topk_select_idx = select_idx * (1 - self.select_idx_dropout_topk)
-        bottomk_select_idx = select_idx * (1 - self.select_idx_dropout_bottomk)
+        if self.selector_module == "directions" or self.selector_module == "cosine":
+            select_idx = torch.ones((logits.shape[0], self.num_segments))
+            topk_select_idx = select_idx * (1 - self.select_idx_dropout_topk)
+            bottomk_select_idx = select_idx * (1 - self.select_idx_dropout_bottomk)
 
-        topk_mask = (
-            torch.bernoulli(topk_select_idx).unsqueeze(2).expand([-1, -1, logits.shape[-1]])
-        )  # (batch, num_segments, n_cls)
-        bottomk_mask = (
-            torch.bernoulli(bottomk_select_idx).unsqueeze(2).expand([-1, -1, logits.shape[-1]])
-        )  # (batch, num_segments, n_cls)
+            topk_mask = (
+                torch.bernoulli(topk_select_idx).unsqueeze(2).expand([-1, -1, logits.shape[-1]])
+            )  # (batch, num_segments, n_cls)
+            bottomk_mask = (
+                torch.bernoulli(bottomk_select_idx).unsqueeze(2).expand([-1, -1, logits.shape[-1]])
+            )  # (batch, num_segments, n_cls)
+
+        elif self.selector_module == "feature_magnitude":
+            select_idx_fea_magnitude = torch.ones((logits.shape[0], self.num_segments))
+            topk_select_idx_fea_magnitude = select_idx_fea_magnitude * (
+                1 - self.select_idx_dropout_topk
+            )
+            bottomk_select_idx_fea_magnitude = select_idx_fea_magnitude * (
+                1 - self.select_idx_dropout_bottomk
+            )
+
+            topk_mask = torch.bernoulli(topk_select_idx_fea_magnitude)
+            bottomk_mask = torch.bernoulli(bottomk_select_idx_fea_magnitude)
+
+        topk_mask = topk_mask.to(image_features.device)
+        bottomk_mask = bottomk_mask.to(image_features.device)
 
         if self.select_idx_dropout_topk == self.select_idx_dropout_bottomk:
             topk_mask = bottomk_mask
 
         return topk_mask, bottomk_mask
 
-    def select_topk_idx(self, logits, labels, mask):
+    def select_topk_idx_from_logits(self, logits, labels, mask):
         b, t, num_classes = logits.shape
 
         logits_sum = logits.view(
@@ -155,10 +199,44 @@ class SelectorModel(nn.Module):
 
         return idx_topk_abn, idx_topk_nor
 
-    def select_topk(self, logits, labels, mask):
+    def select_topk_idx_from_feature_magnitude(self, image_features, mask):
+        image_features = rearrange(
+            image_features,
+            "(b n l) d -> b n l d ",
+            n=self.num_segments,
+            l=self.seg_length,
+        )
+        fea_magnitudes = torch.norm(
+            image_features, p=2, dim=3
+        )  # (batch/2, num_segments, seg_length)
+
+        fea_magnitudes = torch.sum(fea_magnitudes, dim=2).to(
+            image_features.device
+        )  # (batch/2, num_segments)
+
+        # Set the values to a low value where the mask is zero and leave the values unchanged where the mask is one
+        min_value = -1e6
+        fea_magnitudes_drop = torch.where(
+            mask == 0,
+            torch.ones_like(fea_magnitudes) * min_value,
+            fea_magnitudes,
+        )
+
+        idx_topk = torch.topk(fea_magnitudes_drop, self.num_topk, dim=1)[1]  # (batch/2, k_abn)
+        idx_topk_abn = idx_topk[: idx_topk.shape[0] // 2]
+        idx_topk_nor = idx_topk[idx_topk.shape[0] // 2 :]
+
+        return idx_topk_abn, idx_topk_nor
+
+    def select_topk(self, logits, image_features, labels, mask):
         b, t, num_classes = logits.shape
 
-        idx_topk_abn, idx_topk_nor = self.select_topk_idx(logits, labels, mask)
+        if self.selector_module == "directions" or self.selector_module == "cosine":
+            idx_topk_abn, idx_topk_nor = self.select_topk_idx_from_logits(logits, labels, mask)
+        elif self.selector_module == "feature_magnitude":
+            idx_topk_abn, idx_topk_nor = self.select_topk_idx_from_feature_magnitude(
+                image_features, mask
+            )
 
         idx_topk_abn_logits = idx_topk_abn.unsqueeze(2).expand(
             [-1, -1, num_classes]
@@ -222,7 +300,7 @@ class SelectorModel(nn.Module):
 
         return total_select_logits, idx_logits
 
-    def select_bottomk_idx(self, logits, labels, mask):
+    def select_bottomk_idx_from_logits(self, logits, labels, mask):
         b, t, num_classes = logits.shape
 
         logits_sum = logits.view(
@@ -263,10 +341,48 @@ class SelectorModel(nn.Module):
 
         return idx_bottomk_abn, idx_bottomk_nor
 
-    def select_bottomk(self, logits, labels, mask):
+    def select_bottomk_idx_from_feature_magnitude(self, image_features, mask):
+        image_features = rearrange(
+            image_features,
+            "(b n l) d -> b n l d ",
+            n=self.num_segments,
+            l=self.seg_length,
+        )
+        fea_magnitudes = torch.norm(
+            image_features, p=2, dim=3
+        )  # (batch/2, num_segments, seg_length)
+
+        fea_magnitudes = torch.sum(fea_magnitudes, dim=2).to(
+            image_features.device
+        )  # (batch/2, num_segments)
+
+        # Set the values to a high value where the mask is zero and leave the values unchanged where the mask is one
+        max_value = 1e6
+        fea_magnitudes_drop = torch.where(
+            mask == 0,
+            torch.ones_like(fea_magnitudes) * max_value,
+            fea_magnitudes,
+        )
+
+        idx_bottomk = torch.topk(fea_magnitudes_drop, self.num_bottomk, dim=1, largest=False)[1]
+
+        idx_bottomk_abn = idx_bottomk[: idx_bottomk.shape[0] // 2]
+        idx_bottomk_nor = idx_bottomk[idx_bottomk.shape[0] // 2 :]
+
+        return idx_bottomk_abn, idx_bottomk_nor
+
+    def select_bottomk(self, logits, image_features, labels, mask):
         b, t, num_classes = logits.shape
 
-        idx_bottomk_abn, idx_bottomk_nor = self.select_bottomk_idx(logits, labels, mask)
+        if self.selector_module == "directions" or self.selector_module == "cosine":
+            idx_bottomk_abn, idx_bottomk_nor = self.select_bottomk_idx_from_logits(
+                logits, labels, mask
+            )
+        elif self.selector_module == "feature_magnitude":
+            (
+                idx_bottomk_abn,
+                idx_bottomk_nor,
+            ) = self.select_bottomk_idx_from_feature_magnitude(image_features, mask)
 
         idx_bottomk_abn_logits = idx_bottomk_abn.unsqueeze(2).expand(
             [-1, -1, num_classes]
