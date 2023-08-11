@@ -66,9 +66,11 @@ class AnomalyCLIPModule(LightningModule):
         # freezing backbone
         for p in self.net.image_encoder.parameters():
             p.requires_grad = False
-        for p in self.net.text_encoder.parameters():
-            p.requires_grad = False
-        self.net.text_encoder.text_projection.requires_grad = True
+        if self.net.text_encoder is not None:
+            for p in self.net.text_encoder.parameters():
+                p.requires_grad = False
+            if self.net.direction_module == "learned_prompts_finetune_encoder":
+                self.net.text_encoder.text_projection.requires_grad = True
         for p in self.net.token_embedding.parameters():
             p.requires_grad = False
 
@@ -301,7 +303,7 @@ class AnomalyCLIPModule(LightningModule):
             raise FileNotFoundError(f"ncentroid file {ncentroid_file} not found")
 
         # Forward pass
-        logits, similarity, abnormal_scores = self.forward(
+        similarity, abnormal_scores = self.forward(
             image_features,
             labels,
             self.ncentroid,
@@ -410,7 +412,7 @@ class AnomalyCLIPModule(LightningModule):
             raise FileNotFoundError(f"ncentroid file {ncentroid_file} not found")
 
         # Forward pass
-        logits, similarity, abnormal_scores = self.forward(
+        similarity, abnormal_scores = self.forward(
             image_features,
             labels,
             self.ncentroid,
@@ -639,43 +641,43 @@ class AnomalyCLIPModule(LightningModule):
 
         param_list.append(
             {
-                "params": self.net.prompt_learner.parameters(),
-                "lr": self.hparams.solver.lr * self.hparams.solver.prompt_learner_ratio,
-                "name": "prompt_learner",
+                "params": self.net.selector_model.parameters(),
+                "lr": self.hparams.solver.lr * self.hparams.solver.selector_model_ratio,
+                "name": "selector_model",
+            }
+        )
+        param_list.append(
+            {
+                "params": self.net.temporal_model.parameters(),
+                "lr": self.hparams.solver.lr * self.hparams.solver.temporal_model_ratio,
+                "name": "temporal_model",
             }
         )
 
-        param_list.append(
-            {
-                "params": self.net.projection.parameters(),
-                "lr": self.hparams.solver.lr * self.hparams.solver.projection_ratio,
-                "name": "projection",
-            }
-        )
-
-        param_list.append(
-            {
-                "params": self.net.axial_attn.parameters(),
-                "lr": self.hparams.solver.lr * self.hparams.solver.axial_attn_ratio,
-                "name": "axial_attention",
-            }
-        )
-
-        param_list.append(
-            {
-                "params": self.net.classifier.parameters(),
-                "lr": self.hparams.solver.lr * self.hparams.solver.classifier_ratio,
-                "name": "classifier",
-            }
-        )
-
-        param_list.append(
-            {
-                "params": self.net.text_encoder.text_projection,
-                "lr": self.hparams.solver.lr * self.hparams.solver.text_projection_ratio,
-                "name": "text_projection",
-            }
-        )
+        if self.net.direction_module == "random_prompts":
+            param_list.append(
+                {
+                    "params": self.net.prompts,
+                    "lr": self.hparams.solver.lr * self.hparams.solver.prompts_ratio,
+                    "name": "prompts",
+                }
+            )
+        elif self.net.direction_module.startswith("learned_prompts"):
+            param_list.append(
+                {
+                    "params": self.net.prompt_learner.parameters(),
+                    "lr": self.hparams.solver.lr * self.hparams.solver.prompt_learner_ratio,
+                    "name": "prompt_learner",
+                }
+            )
+            if self.net.direction_module == "learned_prompts_finetune_encoder":
+                param_list.append(
+                    {
+                        "params": self.net.text_encoder.text_projection,
+                        "lr": self.hparams.solver.lr * self.hparams.solver.text_projection_ratio,
+                        "name": "text_projection",
+                    }
+                )
 
         optimizer = self.optimizer(params=param_list)
         if self.scheduler is not None:
