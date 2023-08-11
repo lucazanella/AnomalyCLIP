@@ -89,6 +89,7 @@ class AnomalyCLIP(nn.Module):
                 len(classnames), self.embedding_dim, dtype=clip_model.dtype
             )
             self.prompts = nn.Parameter(random_prompts)
+            self.text_encoder = None
         elif self.direction_module == "engineered_prompts":
             self.text_encoder = TextEncoderZeroshot(clip_model)
             self.zeroshot_weights = zeroshot_classifier(self.text_encoder, classnames)
