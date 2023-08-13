@@ -10,7 +10,6 @@ import seaborn as sns
 import torch
 from pytorch_lightning import LightningModule
 from pytorch_lightning.utilities import rank_zero_only
-from sklearn.cluster import KMeans
 from torchmetrics import (
     AUROC,
     ROC,
@@ -121,6 +120,7 @@ class AnomalyCLIPModule(LightningModule):
     def forward(
         self,
         image_features: torch.Tensor,
+        image_features_i3d: torch.Tensor,
         labels,
         ncentroid: torch.Tensor,
         segment_size: int = 1,
@@ -128,6 +128,7 @@ class AnomalyCLIPModule(LightningModule):
     ):
         return self.net(
             image_features,
+            image_features_i3d,
             labels,
             ncentroid,
             segment_size,
@@ -145,28 +146,32 @@ class AnomalyCLIPModule(LightningModule):
             # file exists, load
             self.ncentroid = torch.load(ncentroid_file)
         else:
-            with torch.no_grad():
-                loader = self.trainer.datamodule.train_dataloader_test_mode()
+            # train_data_normal = self.trainer.datamodule.train_data_normal_test_mode
+            loader = self.trainer.datamodule.train_dataloader_test_mode()
 
-                # Initialize variables to accumulate the sum of embeddings and the total count
-                embedding_sum = torch.zeros(self.net.embedding_dim)
-                count = 0
+            # Initialize variables to accumulate the sum of embeddings and the total count
+            embedding_sum = torch.zeros(self.net.embedding_dim, device=self.device)
 
-                for nimage_features, nlabels, _, _ in loader:
-                    nimage_features = nimage_features.view(-1, nimage_features.shape[-1])
-                    nimage_features = nimage_features[: len(nlabels.squeeze())]
-                    embedding_sum += nimage_features.sum(dim=0)
-                    count += nimage_features.shape[0]
+            count = 0
 
-                # Compute and save the average embedding
-                self.ncentroid = embedding_sum / count
-                torch.save(self.ncentroid, ncentroid_file)
+            for nimage_features, _, nlabels, _, _ in loader:
+                nimage_features = nimage_features.view(-1, nimage_features.shape[-1]).to(
+                    self.device
+                )
+                nimage_features = nimage_features[: len(nlabels.squeeze())]
+                embedding_sum += nimage_features.sum(dim=0)
+                count += nimage_features.shape[0]
+
+            # Compute and save the average embedding
+            self.ncentroid = embedding_sum / count
+            torch.save(self.ncentroid, ncentroid_file)
 
     def model_step(self, batch: Any):
         nbatch, abatch = batch
-        nimage_features, nlabel, _ = nbatch
-        aimage_features, alabel, _ = abatch
+        nimage_features, nimage_features_i3d, nlabel, _ = nbatch
+        aimage_features, aimage_features_i3d, alabel, _ = abatch
         image_features = torch.cat((aimage_features, nimage_features), 0)
+        image_features_i3d = torch.cat((aimage_features_i3d, nimage_features_i3d), 0)
         labels = torch.cat((alabel, nlabel), 0)
 
         (
@@ -179,8 +184,9 @@ class AnomalyCLIPModule(LightningModule):
             idx_bottomk_abn,
         ) = self.forward(
             image_features,
+            image_features_i3d,
             labels,
-            ncentroid=self.ncentroid,
+            self.ncentroid,
         )  # forward
 
         return (
@@ -304,9 +310,10 @@ class AnomalyCLIPModule(LightningModule):
         pass
 
     def validation_step(self, batch: Any, batch_idx: int):
-        image_features, labels, label, segment_size = batch
+        image_features, image_features_i3d, labels, label, segment_size = batch
         image_features = image_features.to(self.device)
         labels = labels.squeeze(0).to(self.device)
+        image_features_i3d = image_features_i3d.to(self.device)
 
         save_dir = Path(self.hparams.save_dir)
 
@@ -320,6 +327,7 @@ class AnomalyCLIPModule(LightningModule):
         # Forward pass
         similarity, abnormal_scores = self.forward(
             image_features,
+            image_features_i3d,
             labels,
             self.ncentroid,
             segment_size,
@@ -410,9 +418,10 @@ class AnomalyCLIPModule(LightningModule):
 
     @rank_zero_only
     def test_step(self, batch: Any, batch_idx: int):
-        image_features, labels, label, segment_size = batch
+        image_features, image_features_i3d, labels, label, segment_size = batch
         image_features = image_features.to(self.device)
         labels = labels.squeeze(0).to(self.device)
+        image_features_i3d = image_features_i3d.to(self.device)
 
         ckpt_path = Path(self.trainer.ckpt_path)
         save_dir = os.path.normpath(ckpt_path.parent).split(os.path.sep)[-1]
@@ -429,6 +438,7 @@ class AnomalyCLIPModule(LightningModule):
         # Forward pass
         similarity, abnormal_scores = self.forward(
             image_features,
+            image_features_i3d,
             labels,
             self.ncentroid,
             segment_size,
@@ -661,7 +671,6 @@ class AnomalyCLIPModule(LightningModule):
                 "name": "selector_model",
             }
         )
-
         param_list.append(
             {
                 "params": self.net.temporal_model.parameters(),
@@ -675,7 +684,7 @@ class AnomalyCLIPModule(LightningModule):
                 {
                     "params": self.net.prompts,
                     "lr": self.hparams.solver.lr * self.hparams.solver.prompts_ratio,
-                    "name": "prompts",
+                    "name": "learned_no_encoder",
                 }
             )
         elif self.net.direction_module.startswith("learned_encoder"):

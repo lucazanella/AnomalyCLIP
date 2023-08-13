@@ -8,6 +8,7 @@ batch_size_test: 1
 num_classes: 7
 input_size: 224
 load_from_features: True
+features_combined: False
 frames_root: "/usr/src/datasets/XD-Violence/Image-Features/"
 frames_root_val: "/usr/src/datasets/XD-Violence/Image-Features/"
 annotations_root: "/usr/src/datasets/XD-Violence/Annotations/"

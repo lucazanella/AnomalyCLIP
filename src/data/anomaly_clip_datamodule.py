@@ -81,10 +81,13 @@ class AnomalyCLIPDataModule(LightningDataModule):
         This method is called by lightning with both `trainer.fit()` and `trainer.test()`, so be
         careful not to execute things like random split twice!
         """
-        if self.hparams.load_from_features:
-            from data.components.feature_dataset import VideoFrameDataset
+        if self.hparams.features_combined:
+            from data.components.feature_dataset_combined import VideoFrameDataset
         else:
-            from data.components.video_dataset import VideoFrameDataset
+            if self.hparams.load_from_features:
+                from data.components.feature_dataset import VideoFrameDataset
+            else:
+                from data.components.video_dataset import VideoFrameDataset
 
         # load and split datasets only if not loaded already
         if not self.train_data_normal and not self.train_data_anomaly and not self.test_data:

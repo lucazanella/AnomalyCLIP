@@ -21,6 +21,7 @@ class TemporalModel(nn.Module):
         depth: int,
         num_segments: int,
         seg_length: int,
+        i3d: bool = False,
     ):
         super().__init__()
 
@@ -42,8 +43,10 @@ class TemporalModel(nn.Module):
         self.depth = depth
         self.num_segments = num_segments
         self.seg_length = seg_length
+        self.i3d = i3d
 
         if self.temporal_module == "axial":
+            seq_length = self.seg_length if not self.i3d else 1
             self.projection = nn.Linear(self.input_size, self.emb_size)
             self.axial_attn = AxialImageTransformer(
                 dim=self.emb_size,
@@ -51,7 +54,7 @@ class TemporalModel(nn.Module):
                 heads=self.heads,
                 dim_heads=self.dim_heads,
                 reversible=True,
-                axial_pos_emb_shape=(self.num_segments, self.seg_length),
+                axial_pos_emb_shape=(self.num_segments, seq_length),
             )
             self.classifier = ClassificationHead(self.emb_size, output_size)
 
@@ -83,6 +86,7 @@ class TemporalModel(nn.Module):
     def forward(self, features, segment_size, test_mode):
         if self.temporal_module == "axial":
             features = self.projection(features)
+            seq_length = self.seg_length if not self.i3d else 1
 
             if test_mode:
                 features = rearrange(
@@ -90,7 +94,7 @@ class TemporalModel(nn.Module):
                     "(b n s l) d -> b n s l d",
                     n=self.num_segments,
                     s=segment_size,
-                    l=self.seg_length,
+                    l=seq_length,
                 )
                 features = rearrange(features, "b n s l d -> (b s) n l d")
             else:
@@ -98,10 +102,11 @@ class TemporalModel(nn.Module):
                     features,
                     "(b n l) d -> b n l d",
                     n=self.num_segments,
-                    l=self.seg_length,
+                    l=seq_length,
                 )
 
             features = rearrange(features, "b n l d -> b d n l")
+
             features = self.axial_attn(
                 features
             )  # (batch_size, num_segments, seg_length, num_classes - 1)

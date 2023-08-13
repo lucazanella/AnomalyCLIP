@@ -22,7 +22,9 @@ class ComputeLoss:
         self,
         normal_id,
         num_topk,
-        lambda_dir_abn,
+        num_bottomk,
+        lambda_dir_abn_topk,
+        lambda_dir_abn_bottomk,
         lambda_dir_nor,
         lambda_topk_abn,
         lambda_bottomk_abn,
@@ -31,12 +33,15 @@ class ComputeLoss:
         lambda_sparse,
         frames_per_segment,
         num_segments,
+        normal_mode,
     ):
         super().__init__()
 
         self.normal_id = normal_id
         self.num_topk = num_topk
-        self.lambda_dir_abn = lambda_dir_abn
+        self.num_bottomk = num_bottomk
+        self.lambda_dir_abn_topk = lambda_dir_abn_topk
+        self.lambda_dir_abn_bottomk = lambda_dir_abn_bottomk
         self.lambda_dir_nor = lambda_dir_nor
         self.lambda_topk_abn = lambda_topk_abn
         self.lambda_bottomk_abn = lambda_bottomk_abn
@@ -45,6 +50,7 @@ class ComputeLoss:
         self.lambda_sparse = lambda_sparse
         self.frames_per_segment = frames_per_segment
         self.num_segments = num_segments
+        self.normal_mode = normal_mode
 
         self.loss_bce = torch.nn.BCELoss()
 
@@ -52,6 +58,7 @@ class ComputeLoss:
         self,
         similarity,
         similarity_topk,
+        similarity_bottomk,
         labels,
         scores,
         idx_topk_abn,
@@ -68,14 +75,17 @@ class ComputeLoss:
         repeat_interleave_params = [
             (alabels, self.num_segments * self.frames_per_segment),
             (alabels, self.num_topk * self.frames_per_segment),
+            (alabels, self.num_bottomk * self.frames_per_segment),
             (nlabels, self.num_topk * self.frames_per_segment),
         ]
 
-        alabels_per_frame, alabels_per_topk, nlabels_per_topk = (
+        alabels_per_frame, alabels_per_topk, alabels_per_bottomk, nlabels_per_topk = (
             label.repeat_interleave(repeat) for label, repeat in repeat_interleave_params
         )
 
         asimilarity_topk = similarity_topk[: alabels_per_topk.shape[0]]
+        asimilarity_bottomk = similarity_bottomk[: alabels_per_bottomk.shape[0]]
+        nsimilarity_topk = similarity_topk[alabels_per_topk.shape[0] :]
 
         nsimilarity = similarity[similarity.shape[0] // 2 :]
 
@@ -83,23 +93,36 @@ class ComputeLoss:
         alabels_per_topk[alabels_per_topk > self.normal_id] -= 1
 
         asimilarity_topk_total = []
+        asimilarity_bottomk_total = []
 
         for c in range(similarity.shape[1]):
             # Loss on abnormal ones
             abnormal_indices_topk = (alabels_per_topk == c).nonzero(as_tuple=True)[0]
+            abnormal_indices_bottomk = (alabels_per_bottomk == c).nonzero(as_tuple=True)[0]
 
             if abnormal_indices_topk.nelement():
                 asimilarity_topk_c = asimilarity_topk[abnormal_indices_topk, c]  # (bs_c*k*seg_len)
-
                 asimilarity_topk_total.append(asimilarity_topk_c)
 
-        asimilarity_topk_total = torch.cat(asimilarity_topk_total, dim=0)
+            if abnormal_indices_bottomk.nelement():
+                asimilarity_bottomk_c = asimilarity_bottomk[abnormal_indices_bottomk, c]
+                asimilarity_bottomk_total.append(asimilarity_bottomk_c)
 
-        # on most abnormal
-        ldir_abn = self.lambda_dir_abn * -1.0 * asimilarity_topk_total.mean(dim=0)
+        asimilarity_topk_total = torch.cat(asimilarity_topk_total, dim=0)
+        asimilarity_bottomk_total = torch.cat(asimilarity_bottomk_total, dim=0)
+
+        # on topk most abnormal
+        ldir_abn_topk = self.lambda_dir_abn_topk * -1.0 * asimilarity_topk_total.mean(dim=0)
+        # on bottomk least abnormal
+        ldir_abn_bottomk = self.lambda_dir_abn_bottomk * asimilarity_bottomk_total.mean(dim=0)
 
         # on all normal
-        ldir_nor = (nsimilarity.max(dim=1)[0]).mean(dim=0)
+        if self.normal_mode == "all":
+            ldir_nor = (nsimilarity.max(dim=1)[0]).mean(dim=0)
+        elif self.normal_mode == "topk":
+            ldir_nor = (nsimilarity_topk.max(dim=1)[0]).mean(dim=0)
+        else:
+            raise ValueError("normal_mode must be either 'all' or 'topk'")
         ldir_nor = self.lambda_dir_nor * ldir_nor
 
         num_classes = similarity.shape[1] + 1  # +1 for normal class
@@ -181,11 +204,21 @@ class ComputeLoss:
         lsmooth = smooth(abn_scores, self.lambda_smooth)
         lsparse = sparsity(abn_scores, self.lambda_sparse)
 
-        cost = ldir_abn + ldir_nor + ltopk_abn + lbottomk_abn + ltopk_nor + lsmooth + lsparse
+        cost = (
+            ldir_abn_topk
+            + ldir_abn_bottomk
+            + ldir_nor
+            + ltopk_abn
+            + lbottomk_abn
+            + ltopk_nor
+            + lsmooth
+            + lsparse
+        )
 
         return (
             cost,
-            ldir_abn,
+            ldir_abn_topk,
+            ldir_abn_bottomk,
             ldir_nor,
             ltopk_abn,
             lbottomk_abn,

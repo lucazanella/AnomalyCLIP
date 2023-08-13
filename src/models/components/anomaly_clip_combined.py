@@ -115,14 +115,13 @@ class AnomalyCLIP(nn.Module):
         )
 
         additional_concat = len(classnames) - 1
-        input_size = self.embedding_dim + additional_concat * self.concat_features
+        input_size = self.embedding_dim + (len(classnames) - 1) * self.concat_features
         input_size = additional_concat if self.use_similarity_as_features else input_size
         output_size = 1
 
-        self.i3d = True if self.feature_size == 2048 else False
         self.temporal_model = TemporalModel(
             temporal_module=self.temporal_module,
-            input_size=input_size,
+            input_size=self.feature_size,  # 512 or 2048 ?
             emb_size=self.emb_size,
             output_size=output_size,
             dropout_prob=self.dropout_prob,
@@ -131,7 +130,7 @@ class AnomalyCLIP(nn.Module):
             depth=self.depth,
             num_segments=self.num_segments,
             seg_length=self.seg_length,
-            i3d=self.i3d,
+            i3d=True,
         )
 
         self.feature_projection = (
@@ -143,6 +142,7 @@ class AnomalyCLIP(nn.Module):
     def forward(
         self,
         image_features,
+        image_features_i3d,
         labels,
         ncentroid,
         segment_size=1,
@@ -171,9 +171,8 @@ class AnomalyCLIP(nn.Module):
 
             text_features = self.get_text_features()
 
-            # i3d
-            image_features = self.feature_projection(image_features)
-            ncentroid = self.feature_projection(ncentroid)
+            image_features_i3d = torch.squeeze(image_features_i3d, dim=1)
+            image_features_i3d = image_features_i3d.view(-1, image_features_i3d.shape[-1])
 
             similarity = self.selector_model(
                 image_features,
@@ -184,17 +183,17 @@ class AnomalyCLIP(nn.Module):
             )
 
             # Re-center the features
+            # TODO: ablate the transformation
             if self.selector_module != "cosine":
-                image_features -= ncentroid
+                image_features = image_features - ncentroid
 
-            features = self.get_temporal_model_input(image_features, similarity)
+            features = self.get_temporal_model_input(image_features_i3d, similarity)
 
             scores = self.temporal_model(features, segment_size, test_mode)
 
             similarity = similarity.repeat_interleave(self.stride, dim=0)
-            scores = scores.repeat_interleave(self.stride, dim=0)
-
             scores = scores.view(-1)
+            scores = scores.repeat_interleave(self.seg_length, dim=0)
 
             return similarity, scores
 
@@ -235,9 +234,8 @@ class AnomalyCLIP(nn.Module):
 
             text_features = self.get_text_features()
 
-            # i3d
-            image_features = self.feature_projection(image_features)
-            ncentroid = self.feature_projection(ncentroid)
+            image_features_i3d = torch.squeeze(image_features_i3d)
+            image_features_i3d = image_features_i3d.view(-1, image_features_i3d.shape[-1])
 
             (
                 logits,
@@ -255,14 +253,15 @@ class AnomalyCLIP(nn.Module):
             )
 
             # Re-center the features
+            # TODO: ablate the transformation
             if self.selector_module != "cosine":
                 image_features = image_features - ncentroid
 
-            features = self.get_temporal_model_input(image_features, logits)
-
+            features = self.get_temporal_model_input(image_features_i3d, logits)
             scores = self.temporal_model(features, segment_size, test_mode)
-            scores = scores.view(-1)  # (batch*num_segments*seg_length)
 
+            scores = scores.view(-1)  # (batch*num_segments*seg_length)
+            scores = scores.repeat_interleave(self.seg_length, dim=0)
             return (
                 logits,
                 logits_topk,
@@ -277,8 +276,7 @@ class AnomalyCLIP(nn.Module):
         if self.direction_module == "learned_no_encoder":
             text_features = self.prompts
         elif self.direction_module == "engineered":
-            text_features = self.zeroshot_weights.T
-            text_features = text_features.to("cuda")
+            text_features = self.zeroshot_weights
         elif self.direction_module.startswith("learned_encoder"):
             prompts = self.prompt_learner()
             tokenized_prompts = self.tokenized_prompts
