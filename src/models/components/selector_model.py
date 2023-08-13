@@ -87,9 +87,7 @@ class SelectorModel(nn.Module):
             logits = logit_scale * image_features @ text_features.T
         else:
             # Scalar projection
-            # logits = image_features @ text_features.T
-            logit_scale = self.logit_scale.exp()
-            logits = logit_scale * image_features @ text_features.T
+            logits = image_features @ text_features.T
 
         # Normalization
         logits = self.bn_layer(logits)
