@@ -6,9 +6,9 @@ defaults:
   - lr_logger.yaml
 
 model_checkpoint:
-  dirpath:
-  filename: "last"
-  monitor: null
+  dirpath: ${paths.output_dir}/checkpoints
+  filename: "epoch_{epoch:03d}"
+  monitor: "test/mAUC"
   mode: "max"
   save_last: True
   auto_insert_metric_name: False

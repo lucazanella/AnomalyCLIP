@@ -69,12 +69,14 @@ class VideoRecord:
         else:
             self._spatialannotationdir_path = None
 
-    @property
-    def path(self) -> str:
-        if "I3D" in self._path:
-            return self._path + "_i3d.npy"
-        else:
-            return self._path + ".npy"
+    @property  # to be modified
+    def path_clip(self) -> str:
+        path = self._path.replace("-I3D", "")
+        return path + ".npy"
+
+    @property  # to be modified
+    def path_i3d(self) -> str:
+        return self._path + "_i3d.npy"
 
     @property
     def num_frames(self) -> int:
@@ -326,16 +328,19 @@ class VideoFrameDataset(torch.utils.data.Dataset):
             if thetra transform "ImglistToTensor" is used
             3) or anything else if a custom transform is used.
         """
-        im_feature = np.load(record.path, allow_pickle=True)
-        im_feature = torch.tensor(im_feature)
+        # load CLIP features
+        im_feature_clip = np.load(record.path_clip, allow_pickle=True)
+        im_feature_clip = torch.tensor(im_feature_clip)
         tbox = record.tbox
+
+        # load I3D features
+        im_feature_i3d = np.load(record.path_i3d, allow_pickle=True)
+        im_feature_i3d = torch.tensor(im_feature_i3d)
 
         if self.test_mode or self.val_mode:
             labels = list()
-            if "i3d" in record.path:
-                video_name = Path(record.path).stem[:-4]
-            else:
-                video_name = Path(record.path).stem
+
+            video_name = Path(record.path_clip).stem
 
             if self.annotations:
                 start_indices = self.annotations[video_name][::2]
@@ -344,34 +349,32 @@ class VideoFrameDataset(torch.utils.data.Dataset):
                 start_indices = []
                 stop_indices = []
 
-            for i in range(im_feature.shape[0] // self.ncrops):
+            for i in range(im_feature_clip.shape[0] // self.ncrops):
                 label = self.normal_id
                 for start_idx, end_idx in zip(start_indices, stop_indices):
                     if int(start_idx) <= i + record.start_frame <= int(end_idx):
                         label = record.label
                 labels.append(label)
 
-        im_feature = im_feature.view(-1, self.ncrops, im_feature.shape[-1])  # (t, ncrops, 512)
-        im_feature = torch.transpose(im_feature, 0, 1)  # (ncrops, t, 512)
-        im_feature = torch.permute(im_feature, (1, 0, 2))  # (t, ncrops, 512)
+        im_feature_clip = im_feature_clip.view(-1, self.ncrops, im_feature_clip.shape[-1])
+        im_feature_i3d = im_feature_i3d.view(-1, self.ncrops, im_feature_i3d.shape[-1])
 
         if self.transform:
-            im_feature = self.transform(im_feature)
+            im_feature_clip = self.transform(im_feature_clip)
+            im_feature_i3d = self.transform(im_feature_i3d)
 
-        # from each start_index, load self.frames_per_segment
-        # consecutive frames
-        # frame_start_indices = frame_start_indices + record.start_frame  # make sure to start from the correct frame
-        features = list()
+        features_clip = list()
+        features_i3d = list()
         val_labels = list()
         mask = list()
 
         for start_index in frame_start_indices:
             # load self.frames_per_segment frames sequentially from frame_index (inclusive) every self.stride frames
             for i in range(self.frames_per_segment):
-                frame_index = (int(start_index) + i * self.stride) % im_feature.shape[0]
-                feature = im_feature[frame_index]
-                features.append(feature)
-                if len(im_feature) == len(tbox):
+                frame_index = (int(start_index) + i * self.stride) % im_feature_clip.shape[0]
+                feature_clip = im_feature_clip[frame_index]
+                features_clip.append(feature_clip)
+                if len(im_feature_clip) == len(tbox):
                     mask.append(tbox[frame_index])
                 else:
                     mask.append(0)
@@ -379,9 +382,17 @@ class VideoFrameDataset(torch.utils.data.Dataset):
                 if self.val_mode:
                     val_labels.append(labels[frame_index])
 
-        features = torch.cat(features)
-        features = features.view(-1, self.ncrops, features.shape[-1])
-        features = torch.permute(features, (1, 0, 2))
+            index = (int(start_index) % record.num_frames) // self.frames_per_segment
+            feature_i3d = im_feature_i3d[index]
+            features_i3d.append(feature_i3d)
+
+        features_clip = torch.cat(features_clip)
+        features_clip = features_clip.view(-1, self.ncrops, features_clip.shape[-1])
+        features_clip = torch.permute(features_clip, (1, 0, 2))
+
+        features_i3d = torch.cat(features_i3d)
+        features_i3d = features_i3d.view(-1, self.ncrops, features_i3d.shape[-1])
+        features_i3d = torch.permute(features_i3d, (1, 0, 2))
 
         # If 1, the anomaly is inside of the view screen
         mask = torch.tensor(mask).bool()
@@ -389,11 +400,11 @@ class VideoFrameDataset(torch.utils.data.Dataset):
         if self.test_mode:
             # Determine the number of frames per segment
             segment_size = len(frame_start_indices) // self.num_segments
-            return features, np.asarray(labels), record.label, segment_size
+            return features_clip, features_i3d, np.asarray(labels), record.label, segment_size
         elif self.val_mode:
-            return features, record.label, np.asarray(val_labels)
+            return features_clip, features_i3d, record.label, np.asarray(val_labels)
         else:
-            return features, record.label, mask
+            return features_clip, features_i3d, record.label, mask
 
     def __len__(self):
         return len(self.video_list)

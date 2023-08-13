@@ -8,6 +8,7 @@ batch_size_test: 1
 num_classes: 18
 input_size: 224
 load_from_features: True
+features_combined: False
 frames_root: "/usr/src/datasets/shanghaitech/features/"
 frames_root_val: "/usr/src/datasets/shanghaitech/features/"
 annotations_root: "/usr/src/datasets/shanghaitech/"
