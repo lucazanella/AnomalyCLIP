@@ -54,6 +54,7 @@ class SelectorModel(nn.Module):
         labels,
         ncentroid,
         test_mode,
+        val_mode,
     ):
         image_features = torch.reshape(
             image_features, (-1, image_features.shape[-1])
@@ -81,10 +82,9 @@ class SelectorModel(nn.Module):
         )  # num_classes - 1, num_classes - 1
 
         if self.selector_module == "cosine":
-            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
-            logit_scale = self.logit_scale.exp()
             # Cosine similarity
-            logits = logit_scale * image_features @ text_features.T
+            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+            logits = image_features @ text_features.T
         else:
             # Scalar projection
             logits = image_features @ text_features.T
@@ -100,7 +100,7 @@ class SelectorModel(nn.Module):
                 -1, self.num_segments * self.seg_length, logits.shape[-1]
             )  # (batch, num_segments*seg_length, n_cls)
 
-            topk_mask, bottomk_mask = self.generate_mask(logits, image_features)
+            topk_mask, bottomk_mask = self.generate_mask(logits, image_features, val_mode)
 
             logits_topk, idx_topk = self.select_topk(logits, image_features, labels, topk_mask)
             idx_topk_abn, idx_topk_nor = (
@@ -126,7 +126,7 @@ class SelectorModel(nn.Module):
                 idx_bottomk_abn,
             )
 
-    def generate_mask(self, logits, image_features):
+    def generate_mask(self, logits, image_features, val_mode):
         # Generate a mask with the desired percentage of zeros for each row
         if self.selector_module == "directions" or self.selector_module == "cosine":
             select_idx = torch.ones((logits.shape[0], self.num_segments))
@@ -152,11 +152,15 @@ class SelectorModel(nn.Module):
             topk_mask = torch.bernoulli(topk_select_idx_fea_magnitude)
             bottomk_mask = torch.bernoulli(bottomk_select_idx_fea_magnitude)
 
-        topk_mask = topk_mask.to(image_features.device)
-        bottomk_mask = bottomk_mask.to(image_features.device)
-
         if self.select_idx_dropout_topk == self.select_idx_dropout_bottomk:
             topk_mask = bottomk_mask
+
+        if val_mode:
+            topk_mask = torch.ones_like(topk_mask)
+            bottomk_mask = torch.ones_like(bottomk_mask)
+
+        topk_mask = topk_mask.to(image_features.device)
+        bottomk_mask = bottomk_mask.to(image_features.device)
 
         return topk_mask, bottomk_mask
 

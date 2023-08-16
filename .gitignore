@@ -159,6 +159,7 @@ configs/local/default.yaml
 .local
 .npm
 checkpoints/
+configs/data/*
 configs/experiment/*
 configs/model/*
 docker/

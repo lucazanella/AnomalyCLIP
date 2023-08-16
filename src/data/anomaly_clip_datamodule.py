@@ -144,6 +144,21 @@ class AnomalyCLIPDataModule(LightningDataModule):
                 stride=self.hparams.stride,
             )
 
+            self.test_data_val_mode = VideoFrameDataset(
+                root_path=self.hparams.frames_root,
+                annotationfile_path=self.hparams.annotation_file_test,
+                normal_id=self.hparams.normal_id,
+                num_segments=self.hparams.num_segments,
+                frames_per_segment=self.hparams.seg_length,
+                imagefile_template=self.hparams.image_tmpl,
+                transform=self.transform_train,
+                val_mode=True,
+                ncrops=self.hparams.ncrops,
+                temporal_annotation_file=self.hparams.annotation_file_temporal_test,
+                labels_file=self.hparams.labels_file,
+                stride=self.hparams.stride,
+            )
+
     def train_dataloader(self):
         train_loader_normal = DataLoader(
             dataset=self.train_data_normal,
@@ -188,6 +203,16 @@ class AnomalyCLIPDataModule(LightningDataModule):
     def train_dataloader_test_mode(self):
         return DataLoader(
             dataset=self.train_data_normal_test_mode,
+            batch_size=self.hparams.batch_size_test,
+            num_workers=self.hparams.num_workers,
+            pin_memory=self.hparams.pin_memory,
+            shuffle=False,
+            drop_last=False,
+        )
+
+    def test_dataloader_val_mode(self):
+        return DataLoader(
+            dataset=self.test_data_val_mode,
             batch_size=self.hparams.batch_size_test,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
