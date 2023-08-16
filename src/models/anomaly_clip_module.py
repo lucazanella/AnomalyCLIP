@@ -125,6 +125,7 @@ class AnomalyCLIPModule(LightningModule):
         ncentroid: torch.Tensor,
         segment_size: int = 1,
         test_mode: bool = False,
+        val_mode: bool = False,
     ):
         return self.net(
             image_features,
@@ -132,6 +133,7 @@ class AnomalyCLIPModule(LightningModule):
             ncentroid,
             segment_size,
             test_mode,
+            val_mode,
         )
 
     def on_train_start(self):
@@ -145,23 +147,23 @@ class AnomalyCLIPModule(LightningModule):
             # file exists, load
             self.ncentroid = torch.load(ncentroid_file)
         else:
-            # train_data_normal = self.trainer.datamodule.train_data_normal_test_mode
-            loader = self.trainer.datamodule.train_dataloader_test_mode()
+            with torch.no_grad():
+                loader = self.trainer.datamodule.train_dataloader_test_mode()
 
-            # Initialize variables to accumulate the sum of embeddings and the total count
-            embedding_sum = torch.zeros(self.net.feature_size)
+                # Initialize variables to accumulate the sum of embeddings and the total count
+                embedding_sum = torch.zeros(self.net.feature_size)
 
-            count = 0
+                count = 0
 
-            for nimage_features, nlabels, _, _ in loader:
-                nimage_features = nimage_features.view(-1, nimage_features.shape[-1])
-                nimage_features = nimage_features[: len(nlabels.squeeze())]
-                embedding_sum += nimage_features.sum(dim=0)
-                count += nimage_features.shape[0]
+                for nimage_features, nlabels, _, _ in loader:
+                    nimage_features = nimage_features.view(-1, nimage_features.shape[-1])
+                    nimage_features = nimage_features[: len(nlabels.squeeze())]
+                    embedding_sum += nimage_features.sum(dim=0)
+                    count += nimage_features.shape[0]
 
-            # Compute and save the average embedding
-            self.ncentroid = embedding_sum / count
-            torch.save(self.ncentroid, ncentroid_file)
+                # Compute and save the average embedding
+                self.ncentroid = embedding_sum / count
+                torch.save(self.ncentroid, ncentroid_file)
 
     def model_step(self, batch: Any):
         nbatch, abatch = batch
@@ -389,6 +391,80 @@ class AnomalyCLIPModule(LightningModule):
         self.log("test/mAUC", mean_mc_auroc, on_step=False, on_epoch=True, prog_bar=True)
         self.log("test/mAP", mean_mc_aupr, on_step=False, on_epoch=True, prog_bar=True)
 
+        ###
+        with torch.no_grad():
+            # Top-k precision
+            test_dataloader_val_mode = self.trainer.datamodule.test_dataloader_val_mode()
+
+            topk_abn_targets = list()
+            bottomk_abn_targets = list()
+
+            for image_features, video_labels, image_labels in test_dataloader_val_mode:
+                if video_labels[0].item() != normal_idx:
+                    image_features = image_features.to(self.device)
+                    video_labels = video_labels.to(self.device)
+                    image_labels = image_labels.to(self.device)
+                    num_repeats = 2
+                    image_features_repeated = image_features.repeat(num_repeats, 1, 1, 1)
+                    video_labels_repeated = video_labels.repeat(num_repeats)
+
+                    # Perform forward pass
+                    (
+                        logits,
+                        logits_topk,
+                        logits_bottomk,
+                        scores,
+                        idx_topk_abn,
+                        idx_topk_nor,
+                        idx_bottomk_abn,
+                    ) = self.forward(
+                        image_features_repeated,
+                        video_labels_repeated,
+                        ncentroid=self.ncentroid,
+                        val_mode=True,
+                    )
+
+                    for (
+                        topk_abn_idx_i,
+                        bottomk_abn_idx_i,
+                        video_labels_i,
+                        image_labels_i,
+                    ) in zip(
+                        idx_topk_abn,
+                        idx_bottomk_abn,
+                        video_labels,
+                        image_labels,
+                    ):
+                        vid_label = video_labels_i.item()
+                        im_labels = image_labels_i.view(self.net.num_segments, self.net.seg_length)
+                        # print(f"vid_label: {vid_label}")
+                        # print(f"im_labels: {im_labels}")
+
+                        # Process topk targets
+                        topk_abn_target = torch.index_select(im_labels, 0, topk_abn_idx_i)  # 3, 16
+                        topk_abn_target = torch.any(topk_abn_target == vid_label, 1)
+                        topk_abn_targets.append(topk_abn_target)
+
+                        # Process bottomk targets
+                        bottomk_abn_target = torch.index_select(
+                            im_labels, 0, bottomk_abn_idx_i
+                        )  # 3, 16
+                        bottomk_abn_target = torch.all(bottomk_abn_target == normal_idx, 1)
+                        bottomk_abn_targets.append(bottomk_abn_target)
+
+            topk_abn_targets = torch.cat(topk_abn_targets, 0).int()
+            bottomk_abn_targets = torch.cat(bottomk_abn_targets, 0).int()
+            topk_abn_preds = torch.ones_like(topk_abn_targets)
+            bottomk_abn_preds = torch.ones_like(bottomk_abn_targets)
+            topk_abn_precision = self.pr(topk_abn_preds, topk_abn_targets)
+            bottomk_abn_precision = self.pr(bottomk_abn_preds, bottomk_abn_targets)
+
+            self.log("test/top_k_abn_precision", topk_abn_precision, on_step=False, on_epoch=True)
+            self.log(
+                "test/bottom_k_abn_precision", bottomk_abn_precision, on_step=False, on_epoch=True
+            )
+        ###
+
         metrics = {
             "epoch": self.trainer.current_epoch,
             "auc_roc": auc_roc.item(),
@@ -398,6 +474,8 @@ class AnomalyCLIPModule(LightningModule):
             "mc_auroc": mc_auroc.tolist(),
             "mc_aupr": mc_aupr.tolist(),
             "optimal_threshold": optimal_threshold.item(),
+            "topk_abn_precision": topk_abn_precision.item(),
+            "bottomk_abn_precision": bottomk_abn_precision.item(),
         }
 
         save_dir = Path(self.hparams.save_dir)
@@ -547,6 +625,70 @@ class AnomalyCLIPModule(LightningModule):
         mc_aupr_without_normal[mc_aupr_without_normal == 0] = torch.nan
         mean_mc_aupr = torch.nanmean(mc_aupr_without_normal)
 
+        with torch.no_grad():
+            # Top-k precision
+            test_dataloader_val_mode = self.trainer.datamodule.test_dataloader_val_mode()
+
+            topk_abn_targets = list()
+            bottomk_abn_targets = list()
+
+            for image_features, video_labels, image_labels in test_dataloader_val_mode:
+                if video_labels[0].item() != normal_idx:
+                    image_features = image_features.to(self.device)
+                    video_labels = video_labels.to(self.device)
+                    image_labels = image_labels.to(self.device)
+                    num_repeats = 2
+                    image_features_repeated = image_features.repeat(num_repeats, 1, 1, 1)
+                    video_labels_repeated = video_labels.repeat(num_repeats)
+
+                    # Perform forward pass
+                    (
+                        logits,
+                        logits_topk,
+                        logits_bottomk,
+                        scores,
+                        idx_topk_abn,
+                        idx_topk_nor,
+                        idx_bottomk_abn,
+                    ) = self.forward(
+                        image_features_repeated,
+                        video_labels_repeated,
+                        ncentroid=self.ncentroid,
+                        val_mode=True,
+                    )
+
+                    for (
+                        topk_abn_idx_i,
+                        bottomk_abn_idx_i,
+                        video_labels_i,
+                        image_labels_i,
+                    ) in zip(
+                        idx_topk_abn,
+                        idx_bottomk_abn,
+                        video_labels,
+                        image_labels,
+                    ):
+                        vid_label = video_labels_i.item()
+                        im_labels = image_labels_i.view(self.net.num_segments, self.net.seg_length)
+                        # Process topk targets
+                        topk_abn_target = torch.index_select(im_labels, 0, topk_abn_idx_i)  # 3, 16
+                        topk_abn_target = torch.any(topk_abn_target == vid_label, 1)
+                        topk_abn_targets.append(topk_abn_target)
+
+                        # Process bottomk targets
+                        bottomk_abn_target = torch.index_select(
+                            im_labels, 0, bottomk_abn_idx_i
+                        )  # 3, 16
+                        bottomk_abn_target = torch.all(bottomk_abn_target == normal_idx, 1)
+                        bottomk_abn_targets.append(bottomk_abn_target)
+
+            topk_abn_targets = torch.cat(topk_abn_targets, 0).int()
+            bottomk_abn_targets = torch.cat(bottomk_abn_targets, 0).int()
+            topk_abn_preds = torch.ones_like(topk_abn_targets)
+            bottomk_abn_preds = torch.ones_like(bottomk_abn_targets)
+            topk_abn_precision = self.pr(topk_abn_preds, topk_abn_targets)
+            bottomk_abn_precision = self.pr(bottomk_abn_preds, bottomk_abn_targets)
+
         ckpt_path = Path(self.trainer.ckpt_path)
         save_dir = os.path.normpath(ckpt_path.parent).split(os.path.sep)[-1]
         save_dir = Path(os.path.join("/usr/src/app/logs/eval/runs", str(save_dir)))
@@ -569,6 +711,8 @@ class AnomalyCLIPModule(LightningModule):
             "top1_accuracy": top1_accuracy.tolist(),
             "top5_accuracy": top5_accuracy.tolist(),
             "optimal_threshold": optimal_threshold.item(),
+            "topk_abn_precision": topk_abn_precision.item(),
+            "bottomk_abn_precision": bottomk_abn_precision.item(),
         }
 
         with open(save_dir / "metrics.json", "w") as fp:
