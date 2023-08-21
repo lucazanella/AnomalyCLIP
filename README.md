@@ -1,7 +1,7 @@
 # Delving into CLIP latent space for Video Anomaly Recognition
 
 <p align="center">
-  <img style="width: 50%" src="media/architecture.png">
+  <img style="width: 100%" src="media/architecture.png">
 </p>
 <br>
 
