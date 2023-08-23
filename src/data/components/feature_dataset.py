@@ -249,7 +249,7 @@ class VideoFrameDataset(torch.utils.data.Dataset):
             List of indices of where the frames of each
             segment are to be loaded from.
         """
-        if self.test_mode and not self.val_mode:
+        if self.test_mode:
             end_frame = round_to_nearest(
                 record.num_frames,
                 self.num_segments * self.frames_per_segment * self.stride,

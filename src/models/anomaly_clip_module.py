@@ -141,22 +141,22 @@ class AnomalyCLIPModule(LightningModule):
             # file exists, load
             self.ncentroid = torch.load(ncentroid_file)
         else:
-            # train_data_normal = self.trainer.datamodule.train_data_normal_test_mode
-            loader = self.trainer.datamodule.train_dataloader_test_mode()
+            with torch.no_grad():
+                loader = self.trainer.datamodule.train_dataloader_test_mode()
 
-            # Initialize variables to accumulate the sum of embeddings and the total count
-            embedding_sum = torch.zeros(self.net.embedding_dim)
-            count = 0
+                # Initialize variables to accumulate the sum of embeddings and the total count
+                embedding_sum = torch.zeros(self.net.embedding_dim)
+                count = 0
 
-            for nimage_features, nlabels, _, _ in loader:
-                nimage_features = nimage_features.view(-1, nimage_features.shape[-1])
-                nimage_features = nimage_features[: len(nlabels.squeeze())]
-                embedding_sum += nimage_features.sum(dim=0)
-                count += nimage_features.shape[0]
+                for nimage_features, nlabels, _, _ in loader:
+                    nimage_features = nimage_features.view(-1, nimage_features.shape[-1])
+                    nimage_features = nimage_features[: len(nlabels.squeeze())]
+                    embedding_sum += nimage_features.sum(dim=0)
+                    count += nimage_features.shape[0]
 
-            # Compute and save the average embedding
-            self.ncentroid = embedding_sum / count
-            torch.save(self.ncentroid, ncentroid_file)
+                # Compute and save the average embedding
+                self.ncentroid = embedding_sum / count
+                torch.save(self.ncentroid, ncentroid_file)
 
     def model_step(self, batch: Any):
         nbatch, abatch = batch
@@ -301,7 +301,7 @@ class AnomalyCLIPModule(LightningModule):
             raise FileNotFoundError(f"ncentroid file {ncentroid_file} not found")
 
         # Forward pass
-        logits, similarity, abnormal_scores = self.forward(
+        similarity, abnormal_scores = self.forward(
             image_features,
             labels,
             self.ncentroid,
@@ -410,7 +410,7 @@ class AnomalyCLIPModule(LightningModule):
             raise FileNotFoundError(f"ncentroid file {ncentroid_file} not found")
 
         # Forward pass
-        logits, similarity, abnormal_scores = self.forward(
+        similarity, abnormal_scores = self.forward(
             image_features,
             labels,
             self.ncentroid,
@@ -639,36 +639,25 @@ class AnomalyCLIPModule(LightningModule):
 
         param_list.append(
             {
+                "params": self.net.selector_model.parameters(),
+                "lr": self.hparams.solver.lr * self.hparams.solver.selector_model_ratio,
+                "name": "selector_model",
+            }
+        )
+        param_list.append(
+            {
+                "params": self.net.temporal_model.parameters(),
+                "lr": self.hparams.solver.lr * self.hparams.solver.temporal_model_ratio,
+                "name": "temporal_model",
+            }
+        )
+        param_list.append(
+            {
                 "params": self.net.prompt_learner.parameters(),
                 "lr": self.hparams.solver.lr * self.hparams.solver.prompt_learner_ratio,
                 "name": "prompt_learner",
             }
         )
-
-        param_list.append(
-            {
-                "params": self.net.projection.parameters(),
-                "lr": self.hparams.solver.lr * self.hparams.solver.projection_ratio,
-                "name": "projection",
-            }
-        )
-
-        param_list.append(
-            {
-                "params": self.net.axial_attn.parameters(),
-                "lr": self.hparams.solver.lr * self.hparams.solver.axial_attn_ratio,
-                "name": "axial_attention",
-            }
-        )
-
-        param_list.append(
-            {
-                "params": self.net.classifier.parameters(),
-                "lr": self.hparams.solver.lr * self.hparams.solver.classifier_ratio,
-                "name": "classifier",
-            }
-        )
-
         param_list.append(
             {
                 "params": self.net.text_encoder.text_projection,

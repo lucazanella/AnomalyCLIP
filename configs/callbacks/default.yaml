@@ -6,8 +6,8 @@ defaults:
   - lr_logger.yaml
 
 model_checkpoint:
-  dirpath:
-  filename: "last"
+  dirpath: ${paths.output_dir}/checkpoints
+  filename: "epoch_{epoch:03d}"
   monitor: null
   mode: "max"
   save_last: True

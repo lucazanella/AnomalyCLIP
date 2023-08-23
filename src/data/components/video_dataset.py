@@ -311,7 +311,7 @@ class VideoFrameDataset(torch.utils.data.Dataset):
         tbox = record.tbox
 
         # load labels for each frame of the test video
-        if self.test_mode or self.val_mode:
+        if self.test_mode:
             labels = list()
             video_name = Path(record.path).stem
 
