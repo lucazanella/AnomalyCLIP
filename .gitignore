@@ -168,4 +168,3 @@ scripts/
 .env
 .python_history
 src/preprocessing
-website/
