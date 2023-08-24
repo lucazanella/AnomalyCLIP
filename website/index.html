@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <!-- Meta tags for social media banners, these should be filled in appropriatly as they are your "business card" -->
+  <!-- Replace the content tag with appropriate information -->
+  <meta name="description" content="DESCRIPTION META TAG">
+  <meta property="og:title" content="SOCIAL MEDIA TITLE TAG" />
+  <meta property="og:description" content="SOCIAL MEDIA DESCRIPTION TAG TAG" />
+  <meta property="og:url" content="URL OF THE WEBSITE" />
+  <!-- Path to banner image, should be in the path listed below. Optimal dimenssions are 1200X630-->
+  <meta property="og:image" content="static/image/your_banner_image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+
+
+  <meta name="twitter:title" content="TWITTER BANNER TITLE META TAG">
+  <meta name="twitter:description" content="TWITTER BANNER DESCRIPTION META TAG">
+  <!-- Path to banner image, should be in the path listed below. Optimal dimenssions are 1200X600-->
+  <meta name="twitter:image" content="static/images/your_twitter_banner_image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <!-- Keywords for your paper to be indexed by-->
+  <meta name="keywords" content="KEYWORDS SHOULD BE PLACED HERE">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+  <title>Delving into CLIP latent space for Video Anomaly Recognition</title>
+  <link rel="icon" type="image/x-icon" href="static/images/favicon.ico">
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+
+  <link rel="stylesheet" href="static/css/bulma.min.css">
+  <link rel="stylesheet" href="static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="static/css/fontawesome.all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="static/css/index.css">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://documentcloud.adobe.com/view-sdk/main.js"></script>
+  <script defer src="static/js/fontawesome.all.min.js"></script>
+  <script src="static/js/bulma-carousel.min.js"></script>
+  <script src="static/js/bulma-slider.min.js"></script>
+  <script src="static/js/index.js"></script>
+</head>
+
+<body>
+
+
+  <style>
+    .author-block {
+      margin-right: 10px;
+      /* Adjust the value as per your preference */
+    }
+  </style>
+
+  <style>
+    /* Custom CSS for tooltip */
+    .custom-tooltip .tooltip-inner {
+      background-color: #f1f1f1;
+      color: #333333;
+    }
+
+    .custom-tooltip .tooltip.bs-tooltip-top .arrow::before {
+      border-top-color: #f1f1f1;
+    }
+  </style>
+
+
+
+  <section class="hero">
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered">
+          <div class="column has-text-centered">
+            <h1 class="title is-1 publication-title">Delving into CLIP latent space for Video Anomaly Recognition</h1>
+            <div class="is-size-5 publication-authors">
+              <!-- Paper authors -->
+              <span class="author-block">
+                <a href="FIRST AUTHOR PERSONAL LINK" target="_blank">Luca Zanella</a><sup>*1</sup>,
+              </span>
+              <span class="author-block">
+                <a href="SECOND AUTHOR PERSONAL LINK" target="_blank">Benedetta Liberatori</a><sup>*1</sup>,
+              </span>
+              <span class="author-block">
+                <a href="https://www.willimenapace.com/" target="_blank">Willi Menapace</a><sup>1</sup>,
+              </span>
+              <span class="author-block">
+                <a href="https://fabiopoiesi.github.io/" target="_blank">Fabio Poiesi</a><sup>2</sup>,
+              </span>
+              <span class="author-block">
+                <a href="https://www.yimingwang.it/" target="_blank">Yiming Wang</a><sup>2</sup>,
+              </span>
+              <span class="author-block">
+                <a href="http://elisaricci.eu/" target="_blank">Elisa Ricci</a><sup>1,2</sup>
+              </span>
+            </div>
+            <div class="is-size-5 publication-authors">
+              <span class="author-block" style="margin-left: 10px;"></span><sup>1</sup></span> University of Trento
+              <span class="author-block" style="margin-left: 10px;"></span><sup>2</sup></span> Fondazione Bruno Kessler
+            </div>
+            <div class="is-size-5 publication-authors">
+              <span class="eql-cntrb"><small><sup>*</sup>Indicates Equal Contribution</small></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- Paper abstract -->
+  <section class="section hero is-light">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          <h2 class="title is-3">Abstract</h2>
+          <div class="content has-text-justified">
+            <p>
+              We tackle the complex problem of detecting and recognising anomalies
+              in surveillance videos at the frame level, utilising only video-
+              level supervision. We introduce the novel method <em>AnomalyCLIP</em>,
+              the first to combine Large Language and Vision (LLV) models, such
+              as CLIP, with multiple instance learning for joint video anomaly
+              detection and classification. Our approach specifically involves
+              manipulating the latent CLIP feature space to identify the normal
+              event subspace, which in turn allows us to effectively learn text-
+              driven directions for abnormal events. When anomalous frames
+              are projected onto these directions, they exhibit a large feature
+              magnitude if they belong to a particular class. We also introduce a
+              computationally efficient Transformer architecture to model short-
+              and long-term temporal dependencies between frames, ultimately
+              producing the final anomaly score and class prediction probabilities.
+              We compare <em>AnomalyCLIP</em> against state-of-the-art methods
+              considering two major anomaly detection benchmarks, i.e. ShanghaiTech,
+              UCF-Crime, and XD-Violence, and empirically show that it outperforms
+              baselines in recognising video anomalies. The source code will be
+              made publicly available. </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- End paper abstract -->
+
+
+
+
+
+  <section class="hero teaser">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <h2 class="title is-3">Method Overview</h2>
+        <img src="static/images/architecture.png" alt="Banner Image" height="100%">
+        <h2 class="subtitle has-text-justified">
+          Illustration of our proposed framework <em>AnomalyCLIP</em>. The Selector model learns directions 𝒅 using
+          <div class="tooltip">
+            <a href="#ref1" class="reference-link">CoOp [1]</a>
+            <span class="tooltiptext">Kaiyang Zhou, Jingkang Yang, Chen Change Loy, and Ziwei Liu. 2022. Learning to
+              prompt for vision-language models. International Journal of Computer Vision (2022).</span>
+          </div>, and uses them to identify the likelihood of each feature 𝒙 to represent an
+          occurrence of the corresponding anomalous class. MIL selection of the top-𝐾 and bottom-𝐾 abnormal segments
+          is performed by considering the distribution of likelihoods along the corresponding direction. A Temporal
+          model performs temporal
+          aggregation of the features to produce the final prediction.
+        </h2>
+      </div>
+    </div>
+  </section>
+
+  <section class="section hero is-light">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <h2 class="title is-3">Delving into CLIP latent space</h2>
+        <div style="display: flex; justify-content: center;">
+          <img src="static/images/clip_centring_space.png" alt="Banner Image" height="100%" width="30%" style="margin-bottom: 55px;">
+        </div>
+        <h2 class="subtitle has-text-justified">
+          Illustration of the CLIP space and the effects of the re-centring transformation with features of normal.
+          When the space is not re-centred around the normality prototype 𝒎, directions 𝒅′
+          are similar, making it difficult to discern anomaly types, and feature magnitude is not linked to the
+          degree of anomaly, making it difficult to identify anomalous events. When re-centred, the distribution
+          of the magnitudes of features projected on each 𝒅 identifies the degree of detected anomaly
+          of the corresponding type.
+        </h2>
+      </div>
+    </div>
+  </section>
+
+
+
+
+
+
+
+
+<!-- Experiments section -->
+<section class="hero teaser">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <h2 class="title is-3">Experiments</h2>
+      <div class="content has-text-justified">
+          We validate our method against a range of baselines
+          taken from state-of-the-art video anomaly detection (VAD) and action
+          recognition methods which we adapt to the video anomaly recognition
+          (VAR) task. We evaluate our method using three widely-used VAD datasets, i.e.,
+          <div class="tooltip">
+            <a href="#ref2" class="reference-link">ShanghaiTech [2]</a>
+            <span class="tooltiptext">Wen Liu, Weixin Luo, Dongze Lian, and Shenghua Gao. 2018.
+              Future frame prediction for anomaly detection a new baseline. In CVPR.</span>
+          </div>,
+          <div class="tooltip">
+            <a href="#ref3" class="reference-link">UCF-Crime [3]</a>
+            <span class="tooltiptext">Waqas Sultani, Chen Chen, and Mubarak Shah. 2018. Real-world anomaly
+              detection in surveillance videos. In CVPR.</span>
+          </div>, and
+          <div class="tooltip">
+            <a href="#ref4" class="reference-link">XD-Violence [4]</a>
+            <span class="tooltiptext">Wu Peng, Jing Liu, Yujia Shi, Yujia Sun, Fangtao Shao, Zhaoyang Wu, and
+              Zhiwei Yang. 2020. Not only look, but also listen: Learning multimodal violence detection under
+              weak supervision. In ECCV.</span>
+          </div>, and perform comparison in both the VAD and VAR tasks.
+
+      </div>
+    </div>
+  </div>
+</section>
+<!-- End Experiments section -->
+
+
+
+
+
+  <section class="hero teaser">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <h2 class="title is-3">Quantitative Results</h2>
+        <div class="figures-container">
+          <div class="figure-wrapper">
+            <img src="static/images/qualitative_vad.png" alt="VAD Image" height="90%">
+            <h2 class="subtitle has-text-justified">
+              Comparison of various anomaly detection methods on the ShanghaiTech, UCF-Crime, and XD-Violence datasets
+              in terms of the area under the curve (AUC) of the receiver operating characteristic (ROC) and the average
+              precision (AP) of the precision-recall curve (PRC). A higher AUC and AP are crucial for video anomaly
+              detection as they reflect the model’s ability in correctly recognising the presence of anomalies.
+            </h2>
+          </div>
+          <div class="figure-wrapper">
+            <img src="static/images/qualitative_var.png" alt="VAR Image" height="90%">
+            <h2 class="subtitle has-text-justified">
+              Comparison of various anomaly recognition methods on the ShanghaiTech, UCF-Crime, and XD-Violence datasets
+              in terms of the mean area under the curve (mAUC) of the receiver operating characteristic (ROC) and the
+              mean average precision (mAP) of the precision-recall curve (PRC), which calculate the mean of binary
+              AUC ROC and AP PRC values for all anomalous classes, respectively. A higher mAUC and mAP are crucial for
+              video anomaly recognition as they reflect the model's ability in correctly recognising the correct abnormal
+              class. Notably, our proposed method, \methodname, achieves the highest performance on all datasets, surpassing
+              both the state-of-the-art methods on video anomaly detection that are re-purposed for anomaly recognition
+              and CLIP-based video action recognition methods.
+            </h2>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+
+
+  <!-- Video description-->
+  <section class="section hero is-light">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+
+          <h2 class="title is-3">Qualitative Results</h2>
+          <div class="content has-text-justified">
+            <p>
+              In each of the following illustrations we show a video from the testing set of UCF-Crime,
+              together with the anomaly probability p(A) and the conditional probabilities for each anomalous
+              class p(c|A) predicted by AnomalyCLIP. When p(A) is greater than the threshold maximizing
+              (true positive rate - false positive rate), the frame is predicted as anomalous,
+              the bounding box around the video is colored red and the bins of top-3 predictions
+              are highlighted in red. In the bottom part of the figure, red shaded areas denote the temporal
+              ground-truth of anomalies, while a red slider indicates the video's time progression.
+          </div>
+        </div>
+
+    </div>
+  </section>
+  <!-- End Video description -->
+
+
+
+
+
+
+  <!-- Teaser video-->
+  <section class="hero teaser">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/RoadAccidents017_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+          The video captures a road accident between two vehicles.
+          The anomaly probability remains low while the scene
+          is normal, but quickly rises when the two vehicles collide.
+          The RoadAccident class is consistently predicted with
+          the highest probability for most of the frames, while
+          some frames also have a high probability for Explosion when
+          smoke can be seen after the crash.
+
+        </h2>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+
+  <!-- Teaser video-->
+  <section class="section hero is-light">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+          <video poster="" id="tree" autoplay controls muted loop height="100%">
+            <!-- Your video here -->
+            <source src="videos/Explosion016_x264.mp4" type="video/mp4">
+          </video>
+          <h2 class="subtitle has-text-justified">
+            The video depicts a building in flames,
+            where the presence of an anomaly becomes highly
+            probable as soon as smoke emerges, and continues
+            to remain high even if the ground truth fails to identify an
+            anomaly. Notably, the detected anomaly is accurately classified as an explosion.
+          </h2>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+  <!-- Teaser video-->
+  <section class="hero teaser">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/Explosion021_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+          The video depicts an explosion occurring at a fuel station.
+          Initially, the situation appears normal with a low abnormal probability.
+          However, when the explosion takes place, the conditional probability for
+          the abnormal class increases significantly. Notably, the video loops twice,
+          but the ground truth annotation only pertains to the first loop. Nevertheless,
+          our model accurately detects multiple anomalous events in the video.
+
+        </h2>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+
+
+
+  <!-- Teaser video-->
+  <section class="section hero is-light">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/Arson016_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+          The video shows arson. As soon as the flame starts to appear,
+          the probability of anomaly presence increases, and the two anomalies
+          with higher probability are Arson, which is the groud truth, and Explosion, which is highly correlated.
+
+
+
+        </h2>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+
+
+  <!-- Teaser video-->
+  <section class="hero teaser">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/Normal_Videos_641_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+          The video portrays a common scenario in a
+          supermarket. Our AnomalyCLIP model classifies
+          the video as normal for the entire duration, with only
+          a few frames exceeding the abnormality threshold.
+          Conditional probabilities do not show any particular
+          action that dominates the predictions made by the model.
+
+        </h2>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+  <!-- Teaser video-->
+  <section class="section hero is-light">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/RoadAccidents022_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+          The video depicts a road accident between a
+          vehicle and some bikers. The anomaly probability remains
+          low during the normal scene and rises sharply when
+          the impact occurs. AnomalyCLIP accurately identifies
+          the anomalous frames as RoadAccident. Notably, the video
+          loops twice, but our model correctly detects two anomalous
+          events with consistent predictions, while the ground truth
+          annotation only covers the first loop of the video.
+
+
+
+        </h2>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+  <!-- Teaser video-->
+  <section class="hero teaser">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/Fighting033_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+          The video captures a group of individuals engaged
+          in a physical altercation, which is correctly classified
+          by AnomalyCLIP as fighting. The model initially predicts
+          the video as normal, but as the situation escalates and the
+          individuals start fighting, the probability of being abnormal increases.
+          While the model also classifies the video as assault,
+          the circumstances make it difficult to distinguish between the two actions.
+
+        </h2>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+  <!-- Teaser video-->
+  <section class="section hero is-light">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/Burglary033_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+
+
+          The video shows the unfolding of a burglary. The anomaly probability is high
+          in the time window in which the anomaly takes place and the anomalous class
+          is correct for the majority of the frames.
+
+        </h2>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+  <!-- Teaser video-->
+  <section class="hero teaser">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/RoadAccidents133_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+          The video shows a traffic accident involving
+          some motorcyclists and a van making a U-turn.
+          The anomaly probability remains low until the moment
+          of the accident, when it rises steeply.
+          AnomalyCLIP correctly labels the video as
+          RoadAccident, but during the frames in which
+          the motorbike catches fire, the predicted action is predominantly Explosion.
+        </h2>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+  <!-- Teaser video-->
+  <section class="section hero is-light">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/Shoplifting039_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+          The video captures a scene of shoplifting.
+          Due to the subtle nature of the action,
+          AnomalyCLIP predicts a consistently low
+          anomaly probability throughout the entire video,
+          failing to surpass the threshold for abnormality.
+
+
+        </h2>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+  <!-- Teaser video-->
+  <section class="hero teaser">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/Arson009_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+          The video shows a man setting a car on fire.
+          At first, the frames are predicted with high probability as anomaly and
+          the anomaly detected is Stealing. Then the arson is correctly
+          identified and the second class with higher probability is Explosion.
+          It can also be seen that the probability of anomaly remains high and
+          related to arson due to the presence of firefighters.
+
+        </h2>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+  <!-- Teaser video-->
+  <section class="section hero is-light">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/Assault006_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+          The video shows a man being beaten by a group of people.
+          The frames are predicted as anomaly with a high probability
+          and the anomaly class correctly identified is Assault.
+          In addition, the second most likely anomalous class predicted is Fighting.
+
+        </h2>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+  <!-- Teaser video-->
+  <section class="hero teaser">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/Arson018_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+          The video shows a man setting a car on fire.
+          At first, the frames are predicted with high
+          probability as anomaly and the anomaly detected is Stealing.
+          Then the arson is correctly identified and the second class
+          with higher probability is Explosion. It can also be seen that the
+          probability of anomaly remains high and related to arson due to the presence of smoke.
+
+        </h2>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+  <!-- Teaser video-->
+  <section class="section hero is-light">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/Arrest039_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+          The video depicts the arrest of a man with a high anomalous probability,
+          with the predicted anomaly being correctly classified as Arrest.
+          However, there are instances where the predicted anomaly is Abuse,
+          which can be attributed to the presence of the man on the ground surrounded by people.
+          In the first part of the video, there were predictions of Robbery, possibly due to the fact
+          that the man carries a gun.
+        </h2>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+
+  <!-- Teaser video-->
+  <section class="hero teaser">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <video poster="" id="tree" autoplay controls muted loop height="100%">
+          <!-- Your video here -->
+          <source src="videos/Vandalism017_x264.mp4" type="video/mp4">
+        </video>
+        <h2 class="subtitle has-text-justified">
+          The video depicts a man attempting to break a store window,
+          labelled as an act of vandalism. AnomalyCLIP detects abnormal
+          frames starting from the moment the man covers his face with a
+          balaclava, and particularly when he throws an object at the window.
+          In some frames, the action is misclassified as robbery and burglary,
+          but given the context of the video, these predictions are reasonable.
+          Notably, the video loops twice, and AnomalyCLIP correctly identifies both
+          instances of abnormality, even when the man is out of view due to the shattered glass.
+
+        </h2>
+      </div>
+    </div>
+  </section>
+  <!-- End teaser video -->
+
+
+  <section class="references">
+    <div class="container is-max-desktop">
+      <div class="content">
+        <h3>References</h3>
+        <ol>
+          <li id="ref1">[1] Kaiyang Zhou, Jingkang Yang, Chen Change Loy, and Ziwei Liu. 2022. Learning to prompt for
+            vision-language models.
+            International Journal of Computer Vision (2022).</li>
+          <li id="ref2">[2] Wen Liu, Weixin Luo, Dongze Lian, and Shenghua Gao. 2018. Future frame
+            prediction for anomaly detection a new baseline. In CVPR.</li>
+          <li id="ref3">[3] Waqas Sultani, Chen Chen, and Mubarak Shah. 2018. Real-world anomaly
+            detection in surveillance videos. In CVPR.</li>
+          <li id="ref4">[4] Wu Peng, Jing Liu, Yujia Shi, Yujia Sun, Fangtao Shao, Zhaoyang Wu, and
+            Zhiwei Yang. 2020. Not only look, but also listen: Learning multimodal violence detection under
+            weak supervision. In ECCV.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.10.2/umd/popper.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.min.js"></script>
+
+  <script>
+    $(function () {
+      $('[data-toggle="tooltip"]').tooltip();
+    });
+  </script>
+
+
+  <footer class="footer">
+    <div class="container">
+      <div class="columns is-centered">
+        <div class="column is-8">
+          <div class="content">
+
+            <p>
+              This page was built using the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template"
+                target="_blank">Academic Project Page Template</a>.
+              You are free to borrow the code of this website, we just ask that you link back to this page in the footer.
+              <br> This website is licensed under a <a rel="license"
+                href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative
+                Commons Attribution-ShareAlike 4.0 International License</a>.
+            </p>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+
+
+  <!-- Statcounter tracking code -->
+  <!-- You can add a tracker to track page visits by creating an account at statcounter.com -->
+  <!-- End of Statcounter Code -->
+
+</body>
+
+</html>
