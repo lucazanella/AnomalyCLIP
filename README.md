@@ -17,4 +17,5 @@
 > short- and long-term temporal dependencies between frames, ultimately producing the final anomaly score and class prediction probabilities. We compare AnomalyCLIP against state-of-the-art methods considering three major anomaly detection benchmarks, i.e., ShanghaiTech, UCF-Crime, and XD-Violence, and empirically show that it outperforms baselines in recognising video anomalies.*
 
 # Installation Instructions (Coming Soon)
+
 We are currently working on providing detailed installation instructions for AnomalyCLIP. Please check back shortly for updates on how to install and set up the code.
