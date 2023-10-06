@@ -1,0 +1,68 @@
+_target_: src.models.anomaly_clip_module.AnomalyCLIPModule
+num_classes: ${data.num_classes}
+
+optimizer:
+  _target_: torch.optim.AdamW
+  _partial_: true
+  weight_decay: 0.2
+
+scheduler:
+  _target_: src.models.components.scheduler.WarmupCosineAnnealingLR
+  _partial_: true
+  warmup_epochs: 10
+  total_epoch: 100
+
+net:
+  _target_: src.models.components.anomaly_clip.AnomalyCLIP
+  arch: ViT-B/16
+  shared_context: False
+  ctx_init: ""
+  seg_length: 16
+  num_segments: 32
+  select_idx_dropout_topk: 0.7
+  select_idx_dropout_bottomk: 0.7
+  n_ctx: 8
+  heads: 8
+  dim_heads:
+  load_from_features: ${data.load_from_features}
+  stride: ${data.stride}
+  ncrops: ${data.ncrops}
+  concat_features: True
+  emb_size: 256
+  depth: 2
+  num_topk: 3
+  num_bottomk: 3
+  labels_file: ${data.labels_file}
+  normal_id: ${data.normal_id}
+  dropout_prob: 0.
+  temporal_module: "axial"
+  direction_module: "learned_encoder_finetune"
+  selector_module: "directions"
+  batch_norm: True
+  feature_size: 512
+  use_similarity_as_features: False
+
+loss:
+  _target_: src.models.components.loss.ComputeLoss
+  normal_id: ${data.normal_id}
+  num_topk: 3
+  #num_bottomk: 3
+  lambda_dir_abn: 1.
+  #lambda_dir_abn_topk: 1.
+  #lambda_dir_abn_bottomk: 0.
+  lambda_dir_nor: 1.
+  lambda_topk_abn: 1.
+  lambda_bottomk_abn: 1.
+  lambda_topk_nor: 1.
+  lambda_smooth: 8.e-4
+  lambda_sparse: 8.e-3
+  frames_per_segment: ${data.seg_length}
+  num_segments: ${data.num_segments}
+  #normal_mode: "all"
+
+solver:
+  lr: 5.e-4
+  prompt_learner_ratio: 1
+  text_projection_ratio: 1
+  selector_model_ratio: 1
+  temporal_model_ratio: 1
