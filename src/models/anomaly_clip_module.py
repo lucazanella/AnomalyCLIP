@@ -145,14 +145,25 @@ class AnomalyCLIPModule(LightningModule):
                 loader = self.trainer.datamodule.train_dataloader_test_mode()
 
                 # Initialize variables to accumulate the sum of embeddings and the total count
-                embedding_sum = torch.zeros(self.net.embedding_dim)
+                embedding_sum = torch.zeros(self.net.embedding_dim).to(self.device)
                 count = 0
 
-                for nimage_features, nlabels, _, _ in loader:
-                    nimage_features = nimage_features.view(-1, nimage_features.shape[-1])
-                    nimage_features = nimage_features[: len(nlabels.squeeze())]
-                    embedding_sum += nimage_features.sum(dim=0)
-                    count += nimage_features.shape[0]
+                if self.trainer.datamodule.hparams.load_from_features:
+                    for nimage_features, nlabels, _, _ in loader:
+                        nimage_features = nimage_features.view(-1, nimage_features.shape[-1])
+                        nimage_features = nimage_features[: len(nlabels.squeeze())]
+                        nimage_features = nimage_features.to(self.device)
+                        embedding_sum += nimage_features.sum(dim=0)
+                        count += nimage_features.shape[0]
+                else:
+                    for nimages, nlabels, _, _ in loader:
+                        b, t, c, h, w = nimages.size()
+                        nimages = nimages.view(-1, c, h, w)
+                        nimages = nimages[: len(nlabels.squeeze())]
+                        nimages = nimages.to(self.device)
+                        nimage_features = self.net.image_encoder(nimages)
+                        embedding_sum += nimage_features.sum(dim=0)
+                        count += nimage_features.shape[0]
 
                 # Compute and save the average embedding
                 self.ncentroid = embedding_sum / count
@@ -160,8 +171,8 @@ class AnomalyCLIPModule(LightningModule):
 
     def model_step(self, batch: Any):
         nbatch, abatch = batch
-        nimage_features, nlabel, _ = nbatch
-        aimage_features, alabel, _ = abatch
+        nimage_features, nlabel = nbatch
+        aimage_features, alabel = abatch
         image_features = torch.cat((aimage_features, nimage_features), 0)
         labels = torch.cat((alabel, nlabel), 0)
 
