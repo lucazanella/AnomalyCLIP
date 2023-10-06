@@ -234,7 +234,7 @@ class VideoFrameDataset(torch.utils.data.Dataset):
             List of indices of where the frames of each
             segment are to be loaded from.
         """
-        if self.test_mode and not self.val_mode:
+        if self.test_mode:
             end_frame = round_to_nearest(
                 record.num_frames,
                 self.num_segments * self.frames_per_segment * self.stride,
@@ -308,10 +308,8 @@ class VideoFrameDataset(torch.utils.data.Dataset):
             if the transform "ImglistToTensor" is used
             3) or anything else if a custom transform is used.
         """
-        tbox = record.tbox
-
         # load labels for each frame of the test video
-        if self.test_mode:
+        if self.test_mode or self.val_mode:
             labels = list()
             video_name = Path(record.path).stem
 
@@ -331,28 +329,21 @@ class VideoFrameDataset(torch.utils.data.Dataset):
 
         # from each start_index, load self.frames_per_segment
         # consecutive frames
-        frame_start_indices = frame_start_indices + record.start_frame
         images = list()
         val_labels = list()
-        mask = list()
 
         for start_index in frame_start_indices:
             for i in range(self.frames_per_segment):
-                frame_index = (int(start_index) + i * self.stride) % record.end_frame
+                frame_index = (int(start_index) + i * self.stride) % record.num_frames
+                frame_index += record.start_frame  # make sure to start from the correct frame
                 image = self._load_image(record.path, frame_index)
                 images.append(image)
-                if record.num_frames == len(tbox):
-                    mask.append(tbox[frame_index])
-                else:
-                    mask.append(0)
 
                 if self.val_mode:
                     val_labels.append(labels[frame_index])
 
         if self.transform is not None:
-            images = self.transform(images)  # ( num_semgents * seg_length, 3, 224, 224)
-
-        mask = torch.tensor(mask).bool()
+            images = self.transform(images)  # ( num_segments * seg_length, 3, 224, 224)
 
         if self.test_mode:
             # Determine the number of frames per segment
@@ -361,7 +352,7 @@ class VideoFrameDataset(torch.utils.data.Dataset):
         elif self.val_mode:
             return images, record.label, np.asarray(val_labels)
         else:
-            return images, record.label, mask
+            return images, record.label
 
     def __len__(self):
         return len(self.video_list)
