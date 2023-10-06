@@ -5,7 +5,7 @@ defaults:
   - data: ucfcrime.yaml # choose datamodule with `test_dataloader()` for evaluation
   - model: anomaly_clip_ucfcrime.yaml
   - logger: null
-  - trainer: default.yaml
+  - trainer: gpu.yaml
   - paths: default.yaml
   - extras: default.yaml
   - hydra: default.yaml
