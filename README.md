@@ -49,7 +49,7 @@ Use the Dockerfile to build the docker image:
 docker build -t anomalyclip -f docker/Dockerfile .
 ```
 
-Run the docker image by mounting the project root to /usr/src/app in the docker container:
+Run the docker image by mounting the project root to `/usr/src/app` and the datasets folder to `/usr/src/datasets` in the docker container:
 
 ```bash
 docker run --gpus '"device=0"' --rm -it -v /path/to/directory/AnomalyCLIP/:/usr/src/app -v /path/to/directory/datasets/:/usr/src/datasets anomalyclip /bin/bash
@@ -88,7 +88,7 @@ choosing `dataset_name` from one of `shanghaitech`, `ucfcrime` and `xdviolence`.
 To train AnomalyCLIP on ShanghaiTech, UCF-Crime and XD-Violence from frames, run the following bash script:
 
 ```bash
-python src/train.py experiment=<dataset_name> data.load_from_features=False data. data.frames_root='/path/to/directory/frames/" data.frames_root_val="/path/to/directory/frames/"
+python src/train.py experiment=<dataset_name> data.load_from_features=False data.frames_root=/path/to/directory/frames/ data.frames_root_val=/path/to/directory/frames/
 ```
 
 after extracting frames from video data in the folder `/path/to/directory/frames/`.
@@ -98,7 +98,7 @@ after extracting frames from video data in the folder `/path/to/directory/frames
 The trained models can be evaluated on the dataset of interest by running the following bash script:
 
 ```bash
-python src/eval.py model=anomaly_clip_<dataset_name> data=<dataset_name> ckpt_path=/path/to/checkpoint
+python src/eval.py model=anomaly_clip_<dataset_name> data=<dataset_name> ckpt_path=/path/to/checkpoints/<dataset_name>/last.ckpt
 ```
 
 # Citation
