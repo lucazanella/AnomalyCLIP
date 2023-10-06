@@ -325,7 +325,6 @@ class VideoFrameDataset(torch.utils.data.Dataset):
         """
         im_feature = np.load(record.path, allow_pickle=True)
         im_feature = torch.tensor(im_feature)
-        tbox = record.tbox
 
         if self.test_mode or self.val_mode:
             labels = list()
@@ -349,15 +348,13 @@ class VideoFrameDataset(torch.utils.data.Dataset):
         im_feature = torch.transpose(im_feature, 0, 1)  # (ncrops, t, 512)
         im_feature = torch.permute(im_feature, (1, 0, 2))  # (t, ncrops, 512)
 
-        if self.transform:
+        if self.transform is not None:
             im_feature = self.transform(im_feature)
 
         # from each start_index, load self.frames_per_segment
         # consecutive frames
-        # frame_start_indices = frame_start_indices + record.start_frame  # make sure to start from the correct frame
         features = list()
         val_labels = list()
-        mask = list()
 
         for start_index in frame_start_indices:
             # load self.frames_per_segment frames sequentially from frame_index (inclusive) every self.stride frames
@@ -365,10 +362,6 @@ class VideoFrameDataset(torch.utils.data.Dataset):
                 frame_index = (int(start_index) + i * self.stride) % im_feature.shape[0]
                 feature = im_feature[frame_index]
                 features.append(feature)
-                if len(im_feature) == len(tbox):
-                    mask.append(tbox[frame_index])
-                else:
-                    mask.append(0)
 
                 if self.val_mode:
                     val_labels.append(labels[frame_index])
@@ -377,9 +370,6 @@ class VideoFrameDataset(torch.utils.data.Dataset):
         features = features.view(-1, self.ncrops, features.shape[-1])
         features = torch.permute(features, (1, 0, 2))
 
-        # If 1, the anomaly is inside of the view screen
-        mask = torch.tensor(mask).bool()
-
         if self.test_mode:
             # Determine the number of frames per segment
             segment_size = len(frame_start_indices) // self.num_segments
@@ -387,7 +377,7 @@ class VideoFrameDataset(torch.utils.data.Dataset):
         elif self.val_mode:
             return features, record.label, np.asarray(val_labels)
         else:
-            return features, record.label, mask
+            return features, record.label
 
     def __len__(self):
         return len(self.video_list)
