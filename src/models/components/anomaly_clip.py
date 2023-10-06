@@ -80,6 +80,7 @@ class AnomalyCLIP(nn.Module):
         self.selector_model = SelectorModel(
             classnames=classnames,
             normal_id=self.normal_id,
+            logit_scale=clip_model.logit_scale,
             num_segments=self.num_segments,
             seg_length=self.seg_length,
             select_idx_dropout_topk=self.select_idx_dropout_topk,
@@ -157,15 +158,7 @@ class AnomalyCLIP(nn.Module):
                 (b, t, c, h, w) = image_features.size()
                 image_features = image_features.view(-1, c, h, w)
 
-                chunk_size = 16
-                image_features_list = []
-
-                for i in range(0, image_features.shape[0], chunk_size):
-                    chunk = image_features[i : i + chunk_size]
-                    encoded_chunk = self.image_encoder(chunk)
-                    image_features_list.append(encoded_chunk)
-
-                image_features = torch.cat(image_features_list, dim=0)
+                image_features = self.image_encoder(image_features)
 
                 image_features = rearrange(
                     image_features,

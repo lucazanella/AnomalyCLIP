@@ -7,6 +7,7 @@ class SelectorModel(nn.Module):
         self,
         classnames: list,
         normal_id: int,
+        logit_scale: nn.Parameter,
         num_segments: int,
         seg_length: int,
         select_idx_dropout_topk: float,
@@ -18,6 +19,7 @@ class SelectorModel(nn.Module):
 
         self.classnames = classnames
         self.normal_id = normal_id
+        self.logit_scale = logit_scale
         self.num_segments = num_segments
         self.seg_length = seg_length
         self.select_idx_dropout_topk = select_idx_dropout_topk
