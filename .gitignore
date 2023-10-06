@@ -161,10 +161,23 @@ configs/local/default.yaml
 checkpoints/
 configs/experiment/*
 configs/model/*
-docker/
+configs/data/*
 logs/
 scripts/
 .bash_history
 .env
 .python_history
 src/preprocessing
+
+# Allow files
+!/configs/data/shanghaitech.yaml
+!/configs/data/ucfcrime.yaml
+!/configs/data/xdviolence.yaml
+
+!/configs/experiment/shanghaitech.yaml
+!/configs/experiment/ucfcrime.yaml
+!/configs/experiment/xdviolence.yaml
+
+!/configs/model/anomaly_clip_shanghaitech.yaml
+!/configs/model/anomaly_clip_ucfcrime.yaml
+!/configs/model/anomaly_clip_xdviolence.yaml
