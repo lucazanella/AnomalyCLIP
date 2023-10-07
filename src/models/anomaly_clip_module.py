@@ -402,15 +402,12 @@ class AnomalyCLIPModule(LightningModule):
         self.class_probs.clear()
         self.abnormal_scores.clear()
 
-    @rank_zero_only
-    def test_step(self, batch: Any, batch_idx: int):
-        image_features, labels, label, segment_size = batch
-        image_features = image_features.to(self.device)
-        labels = labels.squeeze(0).to(self.device)
-
+    def on_test_start(self):
         ckpt_path = Path(self.trainer.ckpt_path)
         save_dir = os.path.normpath(ckpt_path.parent).split(os.path.sep)[-1]
         save_dir = Path(os.path.join("/usr/src/app/logs/train/runs", str(save_dir)))
+        if not save_dir.is_dir():
+            save_dir.mkdir(parents=True, exist_ok=True)
 
         ncentroid_file = Path(save_dir / "ncentroid.pt")
 
@@ -418,7 +415,39 @@ class AnomalyCLIPModule(LightningModule):
             # file exists, load
             self.ncentroid = torch.load(ncentroid_file)
         else:
-            raise FileNotFoundError(f"ncentroid file {ncentroid_file} not found")
+            with torch.no_grad():
+                loader = self.trainer.datamodule.train_dataloader_test_mode()
+
+                # Initialize variables to accumulate the sum of embeddings and the total count
+                embedding_sum = torch.zeros(self.net.embedding_dim).to(self.device)
+                count = 0
+
+                if self.trainer.datamodule.hparams.load_from_features:
+                    for nimage_features, nlabels, _, _ in loader:
+                        nimage_features = nimage_features.view(-1, nimage_features.shape[-1])
+                        nimage_features = nimage_features[: len(nlabels.squeeze())]
+                        nimage_features = nimage_features.to(self.device)
+                        embedding_sum += nimage_features.sum(dim=0)
+                        count += nimage_features.shape[0]
+                else:
+                    for nimages, nlabels, _, _ in loader:
+                        b, t, c, h, w = nimages.size()
+                        nimages = nimages.view(-1, c, h, w)
+                        nimages = nimages[: len(nlabels.squeeze())]
+                        nimages = nimages.to(self.device)
+                        nimage_features = self.net.image_encoder(nimages)
+                        embedding_sum += nimage_features.sum(dim=0)
+                        count += nimage_features.shape[0]
+
+            # Compute and save the average embedding
+            self.ncentroid = embedding_sum / count
+            torch.save(self.ncentroid, ncentroid_file)
+
+    @rank_zero_only
+    def test_step(self, batch: Any, batch_idx: int):
+        image_features, labels, label, segment_size = batch
+        image_features = image_features.to(self.device)
+        labels = labels.squeeze(0).to(self.device)
 
         # Forward pass
         similarity, abnormal_scores = self.forward(
