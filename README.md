@@ -106,12 +106,10 @@ python src/eval.py model=anomaly_clip_<dataset_name> data=<dataset_name> ckpt_pa
 Please consider citing our paper in your publications if the project helps your research.
 
 ```
-@misc{zanella2023delving,
-      title={Delving into CLIP latent space for Video Anomaly Recognition},
-      author={Luca Zanella and Benedetta Liberatori and Willi Menapace and Fabio Poiesi and Yiming Wang and Elisa Ricci},
-      year={2023},
-      eprint={2310.02835},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
+@article{zanella2023delving,
+  title={Delving into CLIP latent space for Video Anomaly Recognition},
+  author={Zanella, Luca and Liberatori, Benedetta and Menapace, Willi and Poiesi, Fabio and Wang, Yiming and Ricci, Elisa},
+  journal={arXiv preprint arXiv:2310.02835},
+  year={2023}
 }
 ```
