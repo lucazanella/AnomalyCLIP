@@ -35,3 +35,4 @@ seaborn
 # --------- extra --------- #
 dotmap
 ftfy
+einops
