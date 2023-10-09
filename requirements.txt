@@ -1,7 +1,7 @@
 # --------- pytorch --------- #
 --extra-index-url https://download.pytorch.org/whl/cu117
 torch==1.13.1
-torchvision==0.14.1
+torchvision==0.16.0
 pytorch-lightning==1.8.3
 torchmetrics==0.11.0
 
