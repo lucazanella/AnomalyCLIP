@@ -25,7 +25,7 @@ pytest          # tests
 # sh            # for running bash commands in some tests (linux/macos only)
 
 # --------- base --------- #
-pillow==9.0.1
+pillow==10.0.1
 opencv-python==4.5.5.64
 axial_attention
 
