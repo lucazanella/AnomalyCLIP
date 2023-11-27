@@ -36,3 +36,5 @@ seaborn
 dotmap
 ftfy
 einops
+regex
+tqdm
