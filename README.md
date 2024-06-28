@@ -1,7 +1,7 @@
 <div align="center">
 
 [![Paper](https://img.shields.io/badge/paper-arxiv.2310.02835-B31B1B.svg)](https://arxiv.org/abs/2310.02835)
-[![Website](https://img.shields.io/badge/website-AnomalyCLIP-4285F4.svg)](https://luca-zanella-dvl.github.io/AnomalyCLIP/)
+[![Website](https://img.shields.io/badge/website-AnomalyCLIP-4285F4.svg)](https://lucazanella.github.io/AnomalyCLIP/)
 
 # Delving into CLIP latent space for Video Anomaly Recognition
 
@@ -27,7 +27,7 @@ We recommend the use of a Linux machine with CUDA compatible GPUs. We provide bo
 Clone the repo with:
 
 ```bash
-git clone https://github.com/luca-zanella-dvl/AnomalyCLIP
+git clone https://github.com/lucazanella/AnomalyCLIP
 cd AnomalyCLIP
 ```
 
