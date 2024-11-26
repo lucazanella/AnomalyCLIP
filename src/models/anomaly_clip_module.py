@@ -23,6 +23,7 @@ from torchmetrics.classification import Accuracy, MulticlassAUROC, Precision
 
 from src import utils
 from src.models.components.loss import ComputeLoss
+from src.utils.visualizer import Visualizer
 
 log = utils.get_pylogger(__name__)
 
@@ -423,14 +424,14 @@ class AnomalyCLIPModule(LightningModule):
                 count = 0
 
                 if self.trainer.datamodule.hparams.load_from_features:
-                    for nimage_features, nlabels, _, _ in loader:
+                    for nimage_features, nlabels, _, _, _ in loader:
                         nimage_features = nimage_features.view(-1, nimage_features.shape[-1])
                         nimage_features = nimage_features[: len(nlabels.squeeze())]
                         nimage_features = nimage_features.to(self.device)
                         embedding_sum += nimage_features.sum(dim=0)
                         count += nimage_features.shape[0]
                 else:
-                    for nimages, nlabels, _, _ in loader:
+                    for nimages, nlabels, _, _, _ in loader:
                         b, t, c, h, w = nimages.size()
                         nimages = nimages.view(-1, c, h, w)
                         nimages = nimages[: len(nlabels.squeeze())]
@@ -443,9 +444,20 @@ class AnomalyCLIPModule(LightningModule):
             self.ncentroid = embedding_sum / count
             torch.save(self.ncentroid, ncentroid_file)
 
+        if self.trainer.datamodule.hparams.visualize:
+            self.visualizer = Visualizer(
+                self.trainer.datamodule.hparams.normal_id,
+                self.trainer.datamodule.hparams.labels_file,
+                self.trainer.datamodule.hparams.image_tmpl,
+                save_dir,
+                self.device,
+            )
+        else:
+            self.visualizer = None
+
     @rank_zero_only
     def test_step(self, batch: Any, batch_idx: int):
-        image_features, labels, label, segment_size = batch
+        image_features, labels, label, segment_size, path = batch
         image_features = image_features.to(self.device)
         labels = labels.squeeze(0).to(self.device)
 
@@ -468,6 +480,16 @@ class AnomalyCLIPModule(LightningModule):
         num_labels = labels.shape[0]
         class_probs = class_probs[:num_labels]
         abnormal_scores = abnormal_scores[:num_labels]
+        softmax_similarity = softmax_similarity[:num_labels]
+
+        if self.visualizer is not None:
+            self.visualizer.process_video(
+                abnormal_scores,
+                class_probs,
+                softmax_similarity,
+                labels,
+                path,
+            )
 
         return {
             "abnormal_scores": abnormal_scores,

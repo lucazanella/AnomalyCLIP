@@ -373,7 +373,7 @@ class VideoFrameDataset(torch.utils.data.Dataset):
         if self.test_mode:
             # Determine the number of frames per segment
             segment_size = len(frame_start_indices) // self.num_segments
-            return features, np.asarray(labels), record.label, segment_size
+            return features, np.asarray(labels), record.label, segment_size, record.path
         elif self.val_mode:
             return features, record.label, np.asarray(val_labels)
         else:

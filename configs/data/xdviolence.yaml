@@ -21,3 +21,4 @@ annotation_file_test: "/usr/src/datasets/XD-Violence/Annotations/Anomaly_Test.tx
 annotation_file_temporal_test: "/usr/src/datasets/XD-Violence/Annotations/Temporal_Anomaly_Annotation_for_Testing_Videos.txt"
 labels_file: "/usr/src/app/data/xd_labels.csv"
 spatialannotationdir_path:
+visualize: False
