@@ -5,7 +5,7 @@
 
 # Delving into CLIP latent space for Video Anomaly Recognition
 
-Luca Zanella\*, Benedetta Liberatori\*, [Willi Menapace](https://www.willimenapace.com/), [Fabio Poiesi](https://fabiopoiesi.github.io/), [Yiming Wang](https://www.yimingwang.it/), [Elisa Ricci](http://elisaricci.eu/) <br>
+[Luca Zanella](https://lucazanella.github.io/), [Benedetta Liberatori](https://benedettaliberatori.github.io/), [Willi Menapace](https://www.willimenapace.com/), [Fabio Poiesi](https://fabiopoiesi.github.io/), [Yiming Wang](https://www.yimingwang.it/), [Elisa Ricci](http://elisaricci.eu/) <br>
 `*` denotes equal contribution
 
 </div>
@@ -106,10 +106,13 @@ python src/eval.py model=anomaly_clip_<dataset_name> data=<dataset_name> ckpt_pa
 Please consider citing our paper in your publications if the project helps your research.
 
 ```
-@article{zanella2023delving,
-  title={Delving into CLIP latent space for Video Anomaly Recognition},
+@article{zanella2024delving,
+  title={Delving into clip latent space for video anomaly recognition},
   author={Zanella, Luca and Liberatori, Benedetta and Menapace, Willi and Poiesi, Fabio and Wang, Yiming and Ricci, Elisa},
-  journal={arXiv preprint arXiv:2310.02835},
-  year={2023}
+  journal={Computer Vision and Image Understanding},
+  volume={249},
+  pages={104163},
+  year={2024},
+  publisher={Elsevier}
 }
 ```
