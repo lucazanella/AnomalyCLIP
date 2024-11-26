@@ -40,10 +40,17 @@ repos:
 
   # python docstring formatting
   - repo: https://github.com/myint/docformatter
-    rev: v1.7.5
+    rev: "eb1df347edd128b30cd3368dddc3aa65edcfac38"
     hooks:
       - id: docformatter
-        args: [--in-place, --wrap-summaries=99, --wrap-descriptions=99]
+        args:
+          [
+            --in-place,
+            --wrap-summaries=99,
+            --wrap-descriptions=99,
+            --style=sphinx,
+            --black,
+          ]
 
   # python check (PEP8), programming errors and code complexity
   - repo: https://github.com/PyCQA/flake8
