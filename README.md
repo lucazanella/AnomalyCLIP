@@ -5,7 +5,7 @@
 
 # Delving into CLIP latent space for Video Anomaly Recognition
 
-[Luca Zanella](https://lucazanella.github.io/), [Benedetta Liberatori](https://benedettaliberatori.github.io/), [Willi Menapace](https://www.willimenapace.com/), [Fabio Poiesi](https://fabiopoiesi.github.io/), [Yiming Wang](https://www.yimingwang.it/), [Elisa Ricci](http://elisaricci.eu/) <br>
+[Luca Zanella\*](https://lucazanella.github.io/), [Benedetta Liberatori\*](https://benedettaliberatori.github.io/), [Willi Menapace](https://www.willimenapace.com/), [Fabio Poiesi](https://fabiopoiesi.github.io/), [Yiming Wang](https://www.yimingwang.it/), [Elisa Ricci](http://elisaricci.eu/) <br>
 `*` denotes equal contribution
 
 </div>
