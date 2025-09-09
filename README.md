@@ -101,6 +101,10 @@ The trained models can be evaluated on the dataset of interest by running the fo
 python src/eval.py model=anomaly_clip_<dataset_name> data=<dataset_name> ckpt_path=/path/to/checkpoints/<dataset_name>/last.ckpt
 ```
 
+# Acknowledgments
+
+A big shoutout to Shubham Anand for his great blog post **[AnomalyCLIP: Harnessing CLIP for Weakly-Supervised Video Anomaly Recognition](https://learnopencv.com/anomalyclip-video-anomaly-recognition/)**, in which he documented AnomalyCLIP in detail and shared additional scripts for running inference on arbitrary videos and on pre-extracted features.
+
 # Citation
 
 Please consider citing our paper in your publications if the project helps your research.
